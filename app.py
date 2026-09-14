@@ -708,7 +708,21 @@ with tab_kisi_ders:
                     st.rerun()
 
     st.write("---")
-    st.markdown("#### 📚 3. Ders Eşleştirmesi Ekle & Detaylı Yük Analizi")
+
+    # ============================================================
+    # 📊 ÖĞRETMEN DERS YÜKLERİ - AYRI PENCERE
+    # Mevcut ders atamalarına dokunmaz; sadece rapor görünümü ekler.
+    # ============================================================
+    _baslik_col, _buton_col = st.columns([3.2, 1])
+    with _baslik_col:
+        st.markdown("#### 📚 3. Ders Eşleştirmesi Ekle & Detaylı Yük Analizi")
+    with _buton_col:
+        if st.button("👨‍🏫 Öğretmen Ders Yüklerini Aç", use_container_width=True):
+            st.session_state["_ogretmen_yuku_penceresi_ac"] = True
+
+    if "_ogretmen_yuku_penceresi_ac" not in st.session_state:
+        st.session_state["_ogretmen_yuku_penceresi_ac"] = False
+
     c_d_ekle, c_d_tablo = st.columns(2)
     
     with c_d_ekle:
@@ -741,115 +755,117 @@ with tab_kisi_ders:
         else:
             st.warning("Ders ataması yapmak için en az 1 öğretmen ve 1 şube eklemelisiniz.")
 
+    # ------------------------------------------------------------
+    # AYRI PENCERE: ÖĞRETMEN DERS YÜKLERİ
+    # ------------------------------------------------------------
+    if st.session_state.get("_ogretmen_yuku_penceresi_ac", False):
+        df_yuk_pencere = st.session_state.ders_listesi[
+            st.session_state.ders_listesi["Saat"] > 0
+        ].copy()
+
+        def _ogretmen_yuku_icerigi():
+            if df_yuk_pencere.empty:
+                st.info("Henüz atanmış aktif bir ders bulunmuyor.")
+                if st.button("✖️ Kapat", use_container_width=True, key="kapat_ogr_yuk_bos"):
+                    st.session_state["_ogretmen_yuku_penceresi_ac"] = False
+                    st.rerun()
+                return
+
+            st.caption(
+                "Bu pencere mevcut ders eşleştirmelerinden otomatik oluşturulur. "
+                "Hiçbir atamayı değiştirmez."
+            )
+
+            # Öğretmen toplam özetleri
+            ozet_rows = []
+            for ogretmen, grp in df_yuk_pencere.groupby("Öğretmen"):
+                toplam = int(grp["Saat"].sum())
+                dersler = ", ".join(sorted(grp["Ders"].astype(str).unique()))
+                subeler = ", ".join(sorted(grp["Sınıf"].astype(str).unique()))
+                ozet_rows.append({
+                    "Öğretmen": ogretmen,
+                    "Toplam Saat": toplam,
+                    "Girdiği Şubeler": subeler,
+                    "Ders / Branş": dersler,
+                    "Atama Sayısı": len(grp)
+                })
+
+            df_yuk_ozet = (
+                pd.DataFrame(ozet_rows)
+                .sort_values(["Toplam Saat", "Öğretmen"], ascending=[False, True])
+                .reset_index(drop=True)
+            )
+
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Öğretmen", len(df_yuk_ozet))
+            m2.metric("Toplam Ders Saati", int(df_yuk_ozet["Toplam Saat"].sum()))
+            m3.metric("Ortalama Yük", f"{df_yuk_ozet['Toplam Saat'].mean():.1f} Saat")
+            m4.metric("En Yüksek", f"{int(df_yuk_ozet['Toplam Saat'].max())} Saat")
+
+            st.markdown("##### 📋 Öğretmen Bazlı Toplam Ders Yükleri")
+            st.dataframe(
+                df_yuk_ozet[
+                    ["Öğretmen", "Toplam Saat", "Girdiği Şubeler", "Ders / Branş", "Atama Sayısı"]
+                ],
+                use_container_width=True,
+                height=300
+            )
+
+            st.markdown("---")
+            detay_ogretmen = st.selectbox(
+                "🔎 Ayrıntısını görmek istediğiniz öğretmen:",
+                df_yuk_ozet["Öğretmen"].tolist(),
+                key="detay_ogretmen_yuku"
+            )
+
+            detay_df = df_yuk_pencere[
+                df_yuk_pencere["Öğretmen"] == detay_ogretmen
+            ][["Sınıf", "Ders", "Saat", "Nöbetçi"]].copy()
+
+            detay_df = detay_df.sort_values(["Sınıf", "Ders"]).reset_index(drop=True)
+
+            toplam_detay = int(detay_df["Saat"].sum())
+            st.markdown(f"##### 👨‍🏫 {detay_ogretmen} — Ayrıntılı Ders Yükü ({toplam_detay} Saat)")
+            st.dataframe(detay_df, use_container_width=True, height=250)
+
+            # Öğretmene özel Excel
+            buf_detay = io.BytesIO()
+            with pd.ExcelWriter(buf_detay, engine="openpyxl") as writer:
+                df_yuk_ozet.to_excel(writer, sheet_name="Öğretmen Özet", index=False)
+                detay_df.to_excel(writer, sheet_name="Seçili Öğretmen", index=False)
+
+            c_excel, c_kapat = st.columns(2)
+            with c_excel:
+                st.download_button(
+                    "📥 Öğretmen Yükleri Excel İndir",
+                    data=buf_detay.getvalue(),
+                    file_name="ogretmen_ders_yukleri_detayli.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="excel_ogr_yuku_pencere"
+                )
+            with c_kapat:
+                if st.button("✖️ Pencereyi Kapat", use_container_width=True, key="kapat_ogr_yuku"):
+                    st.session_state["_ogretmen_yuku_penceresi_ac"] = False
+                    st.rerun()
+
+        # Streamlit'in native dialog özelliği varsa gerçek modal pencere aç.
+        if hasattr(st, "dialog"):
+            @st.dialog("👨‍🏫 Öğretmen Ders Yükleri", width="large")
+            def _ogr_yuku_modal():
+                _ogretmen_yuku_icerigi()
+
+            _ogr_yuku_modal()
+        else:
+            # Eski Streamlit sürümlerinde de sistem çalışmaya devam etsin.
+            with st.expander("👨‍🏫 Öğretmen Ders Yükleri", expanded=True):
+                _ogretmen_yuku_icerigi()
+
     # SAĞ SÜTUN: 3 SEKMELİ DERS ATAMA VE ÖĞRETMEN YÜKÜ ÖZETİ (Doğru Konumda)
     with c_d_tablo:
         df_gecerli_dersler = st.session_state.ders_listesi[st.session_state.ders_listesi["Saat"] > 0]
         
         if not df_gecerli_dersler.empty:
-            @st.dialog("👨‍🏫 Öğretmen Ders Yükleri", width="large")
-            def ogretmen_ders_yuku_penceresi():
-                """Öğretmenlerin toplam ders yükünü ve sınıf bazlı detayını ayrı pencerede gösterir."""
-                df = st.session_state.ders_listesi[st.session_state.ders_listesi["Saat"] > 0].copy()
-                if df.empty:
-                    st.info("Henüz atanmış aktif bir ders bulunmuyor.")
-                    return
-
-                # Öğretmen bazlı genel özet
-                ozet = []
-                for ogr, grp in df.groupby("Öğretmen"):
-                    toplam = int(grp["Saat"].sum())
-                    subeler = ", ".join(sorted(grp["Sınıf"].astype(str).unique()))
-                    dersler = ", ".join(sorted(grp["Ders"].astype(str).unique()))
-                    nobet = "Evet ✅" if grp["Nöbetçi"].astype(bool).any() else "Hayır ❌"
-                    if toplam >= 30:
-                        durum = f"{toplam} saat • Maks. Yük"
-                    elif toplam >= 21:
-                        durum = f"{toplam} saat • Maaş + Ek"
-                    elif toplam >= 15:
-                        durum = f"{toplam} saat • Maaş"
-                    else:
-                        durum = f"{toplam} saat • Eksik ⚠️"
-                    ozet.append({
-                        "Öğretmen": ogr,
-                        "Toplam Saat": toplam,
-                        "Ders / Branş": dersler,
-                        "Girdiği Şubeler": subeler,
-                        "Yük Durumu": durum,
-                        "Nöbet": nobet
-                    })
-
-                df_ozet = pd.DataFrame(ozet).sort_values(
-                    by="Toplam Saat", ascending=False
-                ).reset_index(drop=True)
-
-                st.markdown("### 📊 Genel Öğretmen Ders Yükleri")
-                m1, m2, m3, m4 = st.columns(4)
-                m1.metric("Öğretmen", len(df_ozet))
-                m2.metric("Toplam Ders Saati", f"{int(df_ozet['Toplam Saat'].sum())} Saat")
-                m3.metric("Ortalama Yük", f"{df_ozet['Toplam Saat'].mean():.1f} Saat")
-                m4.metric("En Yüksek Yük", f"{int(df_ozet['Toplam Saat'].max())} Saat")
-
-                st.dataframe(
-                    df_ozet,
-                    use_container_width=True,
-                    hide_index=True,
-                    height=300
-                )
-
-                st.divider()
-                st.markdown("### 🔎 Seçilen Öğretmenin Ayrıntılı Ders Yükü")
-                secili = st.selectbox(
-                    "Öğretmen Seç",
-                    df_ozet["Öğretmen"].tolist(),
-                    key="ayri_pencere_ogretmen_sec"
-                )
-
-                detay = df[df["Öğretmen"] == secili].copy()
-                detay = detay[["Sınıf", "Ders", "Saat", "Nöbetçi"]].sort_values(
-                    by=["Sınıf", "Ders"]
-                ).reset_index(drop=True)
-                toplam = int(detay["Saat"].sum())
-
-                a1, a2, a3 = st.columns(3)
-                a1.metric("Toplam Ders Yükü", f"{toplam} Saat")
-                a2.metric("Girdiği Şube", int(detay["Sınıf"].nunique()))
-                a3.metric("Ders / Atama", len(detay))
-
-                detay_gosterim = detay.rename(columns={
-                    "Sınıf": "Şube",
-                    "Ders": "Ders Adı",
-                    "Saat": "Haftalık Saat",
-                    "Nöbetçi": "Nöbet Tutabilir"
-                })
-                st.dataframe(
-                    detay_gosterim,
-                    use_container_width=True,
-                    hide_index=True,
-                    height=260
-                )
-
-                # Seçili öğretmene ait Excel çıktısı
-                buf_detay = io.BytesIO()
-                with pd.ExcelWriter(buf_detay, engine="openpyxl") as writer:
-                    detay_gosterim.to_excel(writer, index=False, sheet_name="Ders Yükü")
-                    df_ozet.to_excel(writer, index=False, sheet_name="Tüm Öğretmenler")
-                st.download_button(
-                    "📥 Öğretmen Ders Yükü Raporunu Excel İndir",
-                    data=buf_detay.getvalue(),
-                    file_name=f"{secili.replace(' ', '_')}_ders_yuku.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
-
-            if st.button(
-                "👨‍🏫 Öğretmen Ders Yüklerini Ayrı Pencerede Gör",
-                use_container_width=True,
-                type="primary",
-                key="ogretmen_ders_yuku_dialog_btn"
-            ):
-                ogretmen_ders_yuku_penceresi()
-
-            st.write("")
             sub_tab_atamalar, sub_tab_ogr_yuku, sub_tab_snf_yuku = st.tabs([
                 f"📋 Tüm Atamalar ({len(df_gecerli_dersler)})",
                 f"👨‍🏫 Öğretmen Yükleri ({df_gecerli_dersler['Öğretmen'].nunique()})",

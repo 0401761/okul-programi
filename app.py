@@ -20,10 +20,16 @@ st.set_page_config(page_title="Akıllı Okul Ders Dağıtım & Yönetim Sistemi"
 st.markdown("""
 <style>
     .stButton > button {
-        width: 100%;
-        border-radius: 6px;
-        min-height: 42px;
-        font-weight: 500;
+        width: 100% !important;
+        border-radius: 8px !important;
+        min-height: 48px !important;
+        height: 48px !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin: 0px !important;
     }
     div[data-testid="stMetricValue"] {
         font-size: 1.3rem;
@@ -719,7 +725,7 @@ tum_ogretmenler = sorted(list(df_aktif["Öğretmen"].unique())) if not df_aktif.
 siniflar = sorted(list(df_aktif["Sınıf"].unique())) if not df_aktif.empty else []
 
 # ----------------------------------------------------
-# TAB 3: GÜNE ÖZEL KİLİT MATRİSİ (İLK 5 DERS & SONRAKİ SAATLER)
+# TAB 3: GÜNE ÖZEL KİLİT MATRİSİ (SİMETRİK 2x2 GENİŞ DÜZEN)
 # ----------------------------------------------------
 with tab_kilit:
     if not tum_ogretmenler:
@@ -735,38 +741,38 @@ with tab_kilit:
         if secili_ogr in st.session_state.dondurulan_ogretmenler:
             st.warning(f"📌 **{secili_ogr} hocanın programı SABİTLENMİŞTİR.**")
 
-        # Öğle arası dersi sınırı (Varsayılan: 5. ders sonrası)
         ogle_sinir = int(st.session_state.ogle_arasi_ders)
-        zil_vakitleri = zil_saatlerini_uret(8)
-        ogle_bitis_saat = zil_vakitleri[ogle_sinir - 1].split("-")[1] if ogle_sinir <= len(zil_vakitleri) else "12:40"
+
+        st.markdown("#### ⚡ Güne Özel Hızlı Kilit İşlemleri (Simetrik Geniş Bloklar)")
         
-        st.markdown("#### ⚡ Güne Özel Hızlı Kilit İşlemleri (Öğleden Önce 5 Ders Sınırı)")
-        c_b_tam, c_b_sabah, c_b_ogle, c_b_sifirla = st.columns(4)
-        
-        with c_b_tam:
-            if st.button(f"🚫 {hedef_gun} Komple Kapat", use_container_width=True):
-                for s in range(st.session_state.gun_saatleri[hedef_gun]):
-                    st.session_state.kilitler.add((secili_ogr, hedef_gun, s))
-                st.rerun()
-                
-        with c_b_sabah:
-            # 1'den 5'e kadar olan dersleri kilitler (İlk 5 Ders)
+        # 1. SATIR: SABAH (İLK 5 DERS) VE ÖĞLEDEN SONRA (6+ DERSLER) - %50 - %50 SİMETRİK
+        r1_col1, r1_col2 = st.columns(2)
+        with r1_col1:
             btn_sabah_label = f"☀️ {hedef_gun} Sabah (İlk {ogle_sinir} Ders | 1-{ogle_sinir})"
             if st.button(btn_sabah_label, use_container_width=True):
                 for s in range(min(ogle_sinir, st.session_state.gun_saatleri[hedef_gun])):
                     st.session_state.kilitler.add((secili_ogr, hedef_gun, s))
                 st.rerun()
                 
-        with c_b_ogle:
-            # 5. dersten sonraki dersleri kilitler (Sonraki Saatler: 6+)
+        with r1_col2:
             btn_ogle_label = f"🌙 {hedef_gun} Öğle ({ogle_sinir+1}+ Dersler | Sonraki Saatler)"
             if st.button(btn_ogle_label, use_container_width=True):
                 for s in range(ogle_sinir, st.session_state.gun_saatleri[hedef_gun]):
                     st.session_state.kilitler.add((secili_ogr, hedef_gun, s))
                 st.rerun()
+
+        st.write("")  # Simetrik boşluk
+
+        # 2. SATIR: KOMPLE GÜNÜ KAPAT VE KİLİTLERİ SIFIRLA - %50 - %50 SİMETRİK
+        r2_col1, r2_col2 = st.columns(2)
+        with r2_col1:
+            if st.button(f"🚫 {hedef_gun} Gününü Komple Kapat", use_container_width=True):
+                for s in range(st.session_state.gun_saatleri[hedef_gun]):
+                    st.session_state.kilitler.add((secili_ogr, hedef_gun, s))
+                st.rerun()
                 
-        with c_b_sifirla:
-            if st.button("🔄 Bu Öğretmeni Sıfırla", use_container_width=True):
+        with r2_col2:
+            if st.button("🔄 Bu Öğretmenin Kilitlerini Sıfırla", use_container_width=True):
                 st.session_state.kilitler = {k for k in st.session_state.kilitler if k[0] != secili_ogr}
                 st.rerun()
 
@@ -788,7 +794,7 @@ with tab_kilit:
                         st.rerun()
 
 # ----------------------------------------------------
-# TAB 4: DAĞITIM VE SABİTLEME (DONDURMA)
+# TAB 4: DAĞITIM, SABİTLEME & AKILLI NÖBET MOTORU (4 SAAT BOŞLUK KORUMALI)
 # ----------------------------------------------------
 with tab_motor:
     if not tum_ogretmenler or not siniflar:
@@ -881,24 +887,77 @@ with tab_motor:
                     st.session_state.cozum_sinif = prog_snf
                     st.session_state.ihlal_edilen_kilitler = tespit_edilen_ihlaller
 
+                    # ============================================================
+                    # AKILLI NÖBET MOTORU 2.0:
+                    # 1. Tamamen Boş Günlere ASLA Nöbet Yazılmaz.
+                    # 2. Ard Arda 4 Saat veya Daha Fazla Boşluğu Olan Güne ASLA Nöbet Yazılmaz!
+                    # ============================================================
                     nobet_atamalari = []
                     nobetci_ogrler = df_aktif[df_aktif["Nöbetçi"] == True]["Öğretmen"].unique()
+                    
                     for ogr in nobetci_ogrler:
                         gun_ders_sayilari = {}
-                        for g in GUNLER:
-                            fiili_ders = sum(1 for s in range(st.session_state.gun_saatleri[g]) 
-                                            if prog_ogr[ogr][g][s] not in ["-", "---", "🔒 KİLİTLİ"])
-                            gun_ders_sayilari[g] = fiili_ders
+                        gun_ardisik_bosluk = {}
                         
-                        okulda_oldugu_gunler = {g: ders_s for g, ders_s in gun_ders_sayilari.items() if ders_s > 0}
-                        if okulda_oldugu_gunler:
-                            en_uygun_nobet_gunu = min(okulda_oldugu_gunler, key=okulda_oldugu_gunler.get)
+                        for g in GUNLER:
+                            max_s = st.session_state.gun_saatleri[g]
+                            # O günkü saatlerin boşluk analizi
+                            saat_durumlari = [
+                                prog_ogr[ogr][g][s] in ["-", "---", "🔒 KİLİTLİ"]
+                                for s in range(max_s)
+                            ]
+                            fiili_ders = sum(1 for bos in saat_durumlari if not bos)
+                            gun_ders_sayilari[g] = fiili_ders
+                            
+                            # Ard arda boş saatlerin maksimum sayısını bul
+                            max_bosluk = 0
+                            guncel_bosluk = 0
+                            for bos in saat_durumlari:
+                                if bos:
+                                    guncel_bosluk += 1
+                                    if guncel_bosluk > max_bosluk:
+                                        max_bosluk = guncel_bosluk
+                                else:
+                                    guncel_bosluk = 0
+                            gun_ardisik_bosluk[g] = max_bosluk
+
+                        # Şartlar: Fiili ders > 0 VE Ardışık boşluk < 4 Saat
+                        uygun_gunler = {
+                            g: ders_s for g, ders_s in gun_ders_sayilari.items() 
+                            if ders_s > 0 and gun_ardisik_bosluk[g] < 4
+                        }
+                        
+                        if uygun_gunler:
+                            # 4 saat ardışık boşluğu olmayan ve en az dersi olan gün
+                            en_uygun_nobet_gunu = min(uygun_gunler, key=uygun_gunler.get)
                             nobet_atamalari.append({
                                 "Öğretmen": ogr,
                                 "Nöbet Günü": en_uygun_nobet_gunu,
-                                "O Günkü Ders Saati": okulda_oldugu_gunler[en_uygun_nobet_gunu],
-                                "Boş Gün Korundu": "Evet ✅"
+                                "O Günkü Ders Saati": gun_ders_sayilari[en_uygun_nobet_gunu],
+                                "Maks. Ardışık Boşluk": f"{gun_ardisik_bosluk[en_uygun_nobet_gunu]} Saat",
+                                "Durum": "Boş gün & 4 saat boşluk korundu ✅"
                             })
+                        else:
+                            # Eğer her gününde 4+ saat boşluğu varsa (çok az derse girenler için güvenli geri dönüş)
+                            okulda_oldugu_gunler = {g: ders_s for g, ders_s in gun_ders_sayilari.items() if ders_s > 0}
+                            if okulda_oldugu_gunler:
+                                en_az_bosluklu_gun = min(okulda_oldugu_gunler, key=lambda g: gun_ardisik_bosluk[g])
+                                nobet_atamalari.append({
+                                    "Öğretmen": ogr,
+                                    "Nöbet Günü": en_az_bosluklu_gun,
+                                    "O Günkü Ders Saati": gun_ders_sayilari[en_az_bosluklu_gun],
+                                    "Maks. Ardışık Boşluk": f"{gun_ardisik_bosluk[en_az_bosluklu_gun]} Saat",
+                                    "Durum": "Mecburi Atama (Tüm günlerde 4+ saat boşluk var) ⚠️"
+                                })
+                            else:
+                                nobet_atamalari.append({
+                                    "Öğretmen": ogr,
+                                    "Nöbet Günü": "Ders Yok",
+                                    "O Günkü Ders Saati": 0,
+                                    "Maks. Ardışık Boşluk": "-",
+                                    "Durum": "Ders Atanmadı"
+                                })
+
                     st.session_state.nobet_listesi = pd.DataFrame(nobet_atamalari)
                     st.rerun()
 
@@ -1089,12 +1148,26 @@ with tab_carsaf:
         st.info("Program henüz dağıtılmadı. 4. Sekmeden dağıtım yapıldığında çarşaf çizelge burada görünecektir.")
 
 # ----------------------------------------------------
-# TAB 7: AKILLI NÖBET
+# TAB 7: AKILLI NÖBET (4 SAAT BOŞLUK KORUMALI LİSTE)
 # ----------------------------------------------------
 with tab_nobet:
-    st.subheader("🛡️ Akıllı Nöbet Çizelgesi")
-    st.caption("Öğretmenlerin boş günlerine asla nöbet yazılmaz. Nöbetler sadece fiilen okulda oldukları günler arasından en az dersi olan güne atanır.")
+    st.subheader("🛡️ Akıllı Nöbet Çizelgesi (Gelişmiş Koruma)")
+    st.caption("📌 **Kural 1:** Öğretmenin dersi olmayan boş günlerine asla nöbet yazılmaz.")
+    st.caption("📌 **Kural 2:** Gün içerisinde ard arda 4 saat veya daha fazla boşluğu olan öğretmenlere o gün nöbet verilmez.")
+    
     if st.session_state.nobet_listesi is not None:
         st.dataframe(st.session_state.nobet_listesi, use_container_width=True)
+        
+        # Excel İndir
+        buf_n = io.BytesIO()
+        with pd.ExcelWriter(buf_n, engine='openpyxl') as writer:
+            st.session_state.nobet_listesi.to_excel(writer, index=False)
+        st.download_button(
+            label="📥 Nöbet Çizelgesini Excel Olarak İndir (.xlsx)",
+            data=buf_n.getvalue(),
+            file_name=f"{st.session_state.okul_adi}_nobet_cizelgesi.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
     else:
-        st.info("Program henüz dağıtılmadı.")
+        st.info("Program henüz dağıtılmadı. 4. Sekmeden dağıtım yapıldığında nöbetler burada görünecektir.")

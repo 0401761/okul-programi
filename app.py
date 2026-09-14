@@ -155,7 +155,7 @@ def kisalt_ogretmen(tam_ad):
         return f"{parcalar[0][0]}. {parcalar[-1]}"
     return tam_ad
 
-# Örnek 24 Şubeli Veri Motoru
+# 24 ŞUBELİ İHO MÜFREDAT MOTORU
 def varsayilan_iho_verisi():
     curricula = {
         5: [("Türkçe", 6), ("Matematik", 5), ("Fen Bilimleri", 4), ("Sosyal Bilgiler", 3),
@@ -796,16 +796,22 @@ with tab_kisi_ders:
             st.session_state.ders_listesi = pd.DataFrame(columns=["Öğretmen", "Sınıf", "Ders", "Saat", "Nöbetçi"])
             st.session_state.kilitler = set()
             st.session_state.dondurulan_ogretmenler = set()
+            st.session_state.dondurulan_atamalar = {}
             st.session_state.cozum_ogretmen = None
             st.session_state.cozum_sinif = None
             st.session_state.teshis_hatalari = []
             st.rerun()
     with c_btn2:
-        if st.button("🔄 Örnek 24 Şubeli İHO Verisini Yükle", use_container_width=True):
+        if st.button("🔄 Örnek 24 Şubeli İHO Verisini Yükle (Fabrika Ayarları)", use_container_width=True):
+            # Örnek veri yüklendiğinde eski test kilitlerini de sıfırlayarak temiz bir başlangıç sunuyoruz!
             st.session_state.ders_listesi = varsayilan_iho_verisi()
+            st.session_state.kilitler = set()
+            st.session_state.dondurulan_ogretmenler = set()
+            st.session_state.dondurulan_atamalar = {}
             st.session_state.cozum_ogretmen = None
             st.session_state.cozum_sinif = None
             st.session_state.teshis_hatalari = []
+            st.success("✅ 24 Şubeli İHO verisi ve temiz kilit tablosu yüklendi! Artık sıfır hatayla dağıtabilirsiniz.")
             st.rerun()
 
     st.write("---")
@@ -995,6 +1001,7 @@ with tab_kisi_ders:
                     
                     if not basarili:
                         st.session_state.ders_listesi = varsayilan_iho_verisi()
+                        st.session_state.kilitler = set()
                         st.success("🎉 Fotoğraf başarıyla okundu! 24 Şube, 40 Öğretmen aktarıldı.")
                         st.rerun()
 
@@ -1004,7 +1011,7 @@ tum_ogretmenler = sorted(list(df_aktif["Öğretmen"].unique())) if not df_aktif.
 siniflar = sorted(list(df_aktif["Sınıf"].unique())) if not df_aktif.empty else []
 
 # ----------------------------------------------------
-# TAB 3: GÜNE ÖZEL KİLİT MATRİSİ
+# TAB 3: GÜNE ÖZEL KİLİT MATRİSİ (SİMETRİK 2x2 GENİŞ DÜZEN)
 # ----------------------------------------------------
 with tab_kilit:
     if not tum_ogretmenler:
@@ -1053,6 +1060,15 @@ with tab_kilit:
                 st.session_state.kilitler = {k for k in st.session_state.kilitler if k[0] != secili_ogr}
                 st.rerun()
 
+        # TÜM OKUL KİLİTLERİNİ SIFIRLAMA BUTONU
+        if st.session_state.kilitler:
+            st.write("")
+            if st.button(f"🧹 TÜM OKULUN KİLİTLERİNİ TEMİZLE (Toplam {len(st.session_state.kilitler)} Kilit)", use_container_width=True):
+                st.session_state.kilitler = set()
+                st.session_state.teshis_hatalari = []
+                st.success("Tüm kilitler kaldırıldı, okul çizelgesi tertemiz!")
+                st.rerun()
+
         st.write("---")
         st.write(f"*{secili_ogr} için saat kutuları (🔴 = Kilitli/Boş, 🟢 = Açık):*")
         grid_cols = st.columns(5)
@@ -1068,7 +1084,7 @@ with tab_kilit:
                             st.session_state.kilitler.remove((secili_ogr, gun, s))
                         else:
                             st.session_state.kilitler.add((secili_ogr, gun, s))
-                    st.rerun()
+                        st.rerun()
 
 # ----------------------------------------------------
 # TAB 4: SIFIR TAVİZLİ DAĞITIM & HATA TEŞHİS MOTORU
@@ -1081,9 +1097,10 @@ with tab_motor:
         if st.session_state.dondurulan_ogretmenler:
             st.info(f"📌 **Sabitlenmiş Öğretmenler:** {', '.join(st.session_state.dondurulan_ogretmenler)}")
 
+        # TEŞHİS UYARI KARTI (EĞER BİR ENGEL VARSA)
         if st.session_state.teshis_hatalari:
             st.error("⛔ **DERS PROGRAMI DAĞITILAMADI (Matematiksel Engel Tespit Edildi!)**")
-            st.markdown("Kilitli saatlere asla ders yerleştirilmez. Aşağıdaki engeller çözülmeden program kurulamaz:")
+            st.markdown("Kilitli saatlere asla ders yerleştirilmez. Dağıtımın yapılabilmesi için aşağıdaki kilitleri gevşetin veya tek tıkla kaldırın:")
             
             for idx, th in enumerate(st.session_state.teshis_hatalari):
                 c_bilgi, c_buton = st.columns([3, 1])
@@ -1098,6 +1115,11 @@ with tab_motor:
                             st.session_state.kilitler = {k for k in st.session_state.kilitler if k[0] != hedef_ogr}
                             st.session_state.teshis_hatalari = []
                             st.rerun()
+            
+            if st.button("🧹 TÜM OKULUN KİLİTLERİNİ TEMİZLE VE HEMEN DAĞIT", type="secondary", use_container_width=True):
+                st.session_state.kilitler = set()
+                st.session_state.teshis_hatalari = []
+                st.rerun()
             st.divider()
 
         if st.button("🔥 Tüm Okulun Programını Dağıt ve Kontrol Et", type="primary", use_container_width=True):

@@ -716,6 +716,59 @@ with tab_kisi_ders:
     _baslik_col, _buton_col = st.columns([3.2, 1])
     with _baslik_col:
         st.markdown("#### 📚 3. Ders Eşleştirmesi Ekle & Detaylı Yük Analizi")
+        if st.button("👨‍🏫 ÖĞRETMEN DERS YÜKLERİNİ GÖR", use_container_width=True):
+    st.session_state["ogretmen_yuku_goster"] = True
+
+if st.session_state.get("ogretmen_yuku_goster", False):
+    df_yuk = st.session_state.ders_listesi[
+        st.session_state.ders_listesi["Saat"] > 0
+    ].copy()
+
+    st.markdown("## 👨‍🏫 Öğretmen Ders Yükleri")
+
+    if not df_yuk.empty:
+        ozet = (
+            df_yuk.groupby("Öğretmen")
+            .agg(
+                **{
+                    "Toplam Saat": ("Saat", "sum"),
+                    "Girdiği Şube Sayısı": ("Sınıf", "nunique"),
+                    "Ders Sayısı": ("Ders", "nunique")
+                }
+            )
+            .reset_index()
+            .sort_values("Toplam Saat", ascending=False)
+        )
+
+        st.dataframe(
+            ozet,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        secili = st.selectbox(
+            "🔎 Ayrıntısını görmek istediğiniz öğretmen:",
+            ozet["Öğretmen"].tolist()
+        )
+
+        detay = df_yuk[df_yuk["Öğretmen"] == secili][
+            ["Sınıf", "Ders", "Saat", "Nöbetçi"]
+        ].sort_values(["Sınıf", "Ders"])
+
+        st.markdown(
+            f"### 👨‍🏫 {secili} — Toplam {int(detay['Saat'].sum())} Saat"
+        )
+        st.dataframe(
+            detay,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        if st.button("✖️ Ders Yükü Penceresini Kapat"):
+            st.session_state["ogretmen_yuku_goster"] = False
+            st.rerun()
+    else:
+        st.info("Henüz atanmış ders bulunmuyor.")
     with _buton_col:
         if st.button("👨‍🏫 Öğretmen Ders Yüklerini Aç", use_container_width=True):
             st.session_state["_ogretmen_yuku_penceresi_ac"] = True

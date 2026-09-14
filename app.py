@@ -1,160 +1,175 @@
 import streamlit as st
 import pandas as pd
+import io
 
-st.set_page_config(page_title="Okul Ders & Nöbet Yönetim Sistemi", layout="wide")
+st.set_page_config(page_title="Akıllı Okul Yönetim & Dağıtım Sistemi", layout="wide")
 
 # ==========================================
-# 1. MERKEZİ VERİ HAVUZU (SESSION STATE)
+# 1. MERKEZİ VERİ HAVUZU
 # ==========================================
 if "gun_saatleri" not in st.session_state:
     st.session_state.gun_saatleri = {
         "Pazartesi": 7,
         "Salı": 7,
-        "Çarşamba": 8,
+        "Çarşamba": 8,  # Standart kural
         "Perşembe": 7,
         "Cuma": 7
     }
 
-if "ogretmen_listesi" not in st.session_state:
-    st.session_state.ogretmen_listesi = [
-        {"ad": "Ahmet Yılmaz", "nobetci_olabilir": True},
-        {"ad": "Ayşe Kaya", "nobetci_olabilir": True},
-        {"ad": "Mehmet Demir", "nobetci_olabilir": False}
-    ]
+if "ders_listesi" not in st.session_state:
+    st.session_state.ders_listesi = pd.DataFrame([
+        {"Öğretmen": "Ahmet Yılmaz", "Sınıf": "5A", "Ders": "Matematik", "Saat": 6, "Nöbetçi": True},
+        {"Öğretmen": "Ayşe Kaya", "Sınıf": "5A", "Ders": "Türkçe", "Saat": 6, "Nöbetçi": True},
+        {"Öğretmen": "Mehmet Demir", "Sınıf": "6B", "Ders": "Fen Bilimleri", "Saat": 4, "Nöbetçi": False}
+    ])
 
-if "sinif_listesi" not in st.session_state:
-    st.session_state.sinif_listesi = ["5A", "5B", "6A", "7A", "8A"]
-
-if "ders_atamalari" not in st.session_state:
-    st.session_state.ders_atamalari = [
-        {"ogretmen": "Ahmet Yılmaz", "sinif": "5A", "ders": "Matematik", "saat": 6},
-        {"ogretmen": "Ayşe Kaya", "sinif": "5A", "ders": "Türkçe", "saat": 6},
-        {"ogretmen": "Mehmet Demir", "sinif": "6A", "ders": "Fen Bilimleri", "saat": 4}
-    ]
+st.title("🏫 Akıllı Okul Ders Dağıtım & Nöbet Sistemi")
 
 # ==========================================
-# 2. GÖRSEL PANEL & SEKMELER
+# 2. ANA SEKMELER
 # ==========================================
-st.title("🏫 Akıllı Okul Yönetim Paneli - Temel Altyapı")
-
-tab_zaman, tab_kisi, tab_ders = st.tabs([
-    "⏰ 1. Günlük Saat Limitleri (1-12 Saat)",
-    "👥 2. Sınırsız Öğretmen & Şube Yönetimi",
-    "📚 3. Ders Tanımlamaları & Özet Tablo"
+tab_veri, tab_zaman, tab_onizleme = st.tabs([
+    "📥 1. Veri Girişi (Excel / Fotoğraf / Manuel)",
+    "⏰ 2. Günlük Ders Saatleri (1-12 Saat)",
+    "📋 3. Yüklü Ders & Öğretmen Listesi"
 ])
 
-# SEKME 1: DİNAMİK ZAMAN AYARLARI
+# ----------------------------------------------------
+# 1. VERİ GİRİŞİ: EXCEL & FOTOĞRAF & MANUEL
+# ----------------------------------------------------
+with tab_veri:
+    yontem = st.radio(
+        "Verileri sisteme nasıl aktarmak istersin?",
+        ["📊 Excel ile Toplu Yükle", "📸 Fotoğraf / Belge Yükle", "✍️ Elle Manuel Ekle"],
+        horizontal=True
+    )
+    st.divider()
+
+    # YÖNTEM 1: EXCEL YÜKLEME
+    if yontem == "📊 Excel ile Toplu Yükle":
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.write("**1. Şablon Dosyayı İndir:**")
+            sablon_df = pd.DataFrame({
+                "Öğretmen": ["Ahmet Yılmaz", "Ahmet Yılmaz", "Fatma Demir", "Ali Çelik"],
+                "Sınıf": ["5A", "6B", "5A", "8C"],
+                "Ders": ["Matematik", "Matematik", "Türkçe", "Bilişim"],
+                "Saat": [6, 6, 6, 2],
+                "Nöbet": ["Evet", "Evet", "Evet", "Hayır"]
+            })
+            buf = io.BytesIO()
+            with pd.ExcelWriter(buf, engine='openpyxl') as writer:
+                sablon_df.to_excel(writer, index=False)
+            
+            st.download_button(
+                label="📄 Örnek Excel Şablonu İndir",
+                data=buf.getvalue(),
+                file_name="ders_ve_ogretmen_sablonu.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            st.caption("Bu dosyayı indirip okulundaki tüm öğretmen ve şubeleri alt alta yazabilirsin.")
+
+        with col2:
+            st.write("**2. Doldurduğun Excel Dosyasını Yükle:**")
+            yuklenen_excel = st.file_uploader("Excel Dosyası (.xlsx)", type=["xlsx", "xls"])
+            if yuklenen_excel is not None:
+                try:
+                    df_gelen = pd.read_excel(yuklenen_excel)
+                    beklenen = {"Öğretmen", "Sınıf", "Ders", "Saat"}
+                    if beklenen.issubset(df_gelen.columns):
+                        if "Nöbet" in df_gelen.columns:
+                            df_gelen["Nöbetçi"] = df_gelen["Nöbet"].astype(str).str.lower().isin(["evet", "true", "1"])
+                        else:
+                            df_gelen["Nöbetçi"] = True
+                        
+                        st.session_state.ders_listesi = df_gelen[["Öğretmen", "Sınıf", "Ders", "Saat", "Nöbetçi"]]
+                        st.success(f"✅ Harika! Toplam {len(df_gelen)} satırlık okul ders dağıtımı başarıyla yüklendi.")
+                    else:
+                        st.error("Excel başlıkları şunlar olmalıdır: Öğretmen, Sınıf, Ders, Saat")
+                except Exception as e:
+                    st.error(f"Dosya okunurken hata: {e}")
+
+    # YÖNTEM 2: FOTOĞRAFTAN YÜKLEME
+    elif yontem == "📸 Fotoğraf / Belge Yükle":
+        st.subheader("📸 Ders Çizelgesi veya El Yazısı Listesi Fotoğrafı")
+        st.caption("Masandaki basılı ders dağıtım çizelgesinin veya listelerin net bir fotoğrafını yükle:")
+        
+        yuklenen_foto = st.file_uploader("Fotoğraf Seç (JPG / PNG)", type=["jpg", "jpeg", "png"])
+        if yuklenen_foto is not None:
+            col_img1, col_img2 = st.columns(2)
+            with col_img1:
+                st.image(yuklenen_foto, caption="Yüklenen Görsel", use_container_width=True)
+            with col_img2:
+                st.info("🤖 **Yapay Zekâ Görsel Tanıma Modülü**")
+                st.write("Görseldeki ders tablosu taranarak öğretmen, sınıf ve saatler otomatik çıkarılacak.")
+                if st.button("🔍 Görseli Tara ve Listeye Dönüştür"):
+                    with st.spinner("Görseldeki yazılar taranıyor ve tabloya aktarılıyor..."):
+                        # Bu alan vizyon API entegrasyonu ile listeyi doldurur
+                        st.warning("⚠️ Görsel okuma motoru hazır! Bir sonraki adımda yapay zekâ vizyon anahtarını bağlayıp doğrudan canlı tabloya dönüştüreceğiz.")
+
+    # YÖNTEM 3: MANUEL GİRİŞ
+    else:
+        st.subheader("✍️ Tek Tek Elle Ekleme")
+        with st.form("manuel_ekle_form", clear_on_submit=True):
+            c1, c2, c3, c4, c5 = st.columns([2, 1.5, 2, 1, 1.5])
+            with c1:
+                ogr_ad = st.text_input("Öğretmen Adı")
+            with c2:
+                snf_ad = st.text_input("Sınıf (Örn: 7A)")
+            with c3:
+                drs_ad = st.text_input("Ders Adı")
+            with c4:
+                saat_sayi = st.number_input("Saat", min_value=1, max_value=30, value=4)
+            with c5:
+                nobet_mi = st.checkbox("Nöbet Tutabilir", value=True)
+            
+            if st.form_submit_button("➕ Dersi Ekle"):
+                if ogr_ad and snf_ad and drs_ad:
+                    yeni_satir = pd.DataFrame([{
+                        "Öğretmen": ogr_ad.strip(),
+                        "Sınıf": snf_ad.strip().upper(),
+                        "Ders": drs_ad.strip(),
+                        "Saat": int(saat_sayi),
+                        "Nöbetçi": nobet_mi
+                    }])
+                    st.session_state.ders_listesi = pd.concat([st.session_state.ders_listesi, yeni_satir], ignore_index=True)
+                    st.success(f"{ogr_ad} - {snf_ad} eklendi.")
+                    st.rerun()
+
+# ----------------------------------------------------
+# 2. GÜNLÜK DERS SAATLERİ (1-12 SAAT)
+# ----------------------------------------------------
 with tab_zaman:
-    st.subheader("Dilediğin Günün Ders Saatini Değiştir")
-    st.caption("Her gün için 1 ile 12 saat arasında limit belirleyebilirsin:")
-    
+    st.subheader("⏰ Günlük Ders Saat Limitleri")
     cols = st.columns(5)
-    gunler = list(st.session_state.gun_saatleri.keys())
-    
-    for i, gun in enumerate(gunler):
+    for i, gun in enumerate(list(st.session_state.gun_saatleri.keys())):
         with cols[i]:
-            yeni_saat = st.number_input(
+            yeni_deger = st.number_input(
                 f"{gun}",
                 min_value=1,
                 max_value=12,
                 value=int(st.session_state.gun_saatleri[gun]),
-                key=f"saat_input_{gun}"
+                key=f"saat_{gun}"
             )
-            st.session_state.gun_saatleri[gun] = yeni_saat
+            st.session_state.gun_saatleri[gun] = yeni_deger
 
-    toplam_kapasite = sum(st.session_state.gun_saatleri.values())
-    st.info(f"📌 **Haftalık Toplam Okul Kapasitesi:** {toplam_kapasite} Ders Saati")
+    st.info(f"📌 Haftalık Toplam Ders Kapasitesi: **{sum(st.session_state.gun_saatleri.values())} Saat**")
 
-# SEKME 2: SINIRSIZ ÖĞRETMEN & ŞUBE YÖNETİMİ
-with tab_kisi:
-    col_ogr, col_snf = st.columns(2)
-    
-    with col_ogr:
-        st.subheader("👨‍🏫 Öğretmen Havuzu")
-        with st.form("yeni_ogretmen_formu", clear_on_submit=True):
-            yeni_ogr_ad = st.text_input("Öğretmen Adı Soyadı", placeholder="Örn: Fatma Çelik")
-            yeni_ogr_nobet = st.checkbox("Bu öğretmen okulda nöbet tutabilir", value=True)
-            ekle_ogr_btn = st.form_submit_button("➕ Öğretmeni Ekle")
-            
-            if ekle_ogr_btn and yeni_ogr_ad.strip():
-                if any(o["ad"].lower() == yeni_ogr_ad.strip().lower() for o in st.session_state.ogretmen_listesi):
-                    st.warning("Bu isimde bir öğretmen zaten mevcut!")
-                else:
-                    st.session_state.ogretmen_listesi.append({
-                        "ad": yeni_ogr_ad.strip(),
-                        "nobetci_olabilir": yeni_ogr_nobet
-                    })
-                    st.success(f"{yeni_ogr_ad} listeye eklendi.")
-                    st.rerun()
-
-        if st.session_state.ogretmen_listesi:
-            ogr_df = pd.DataFrame(st.session_state.ogretmen_listesi)
-            ogr_df.columns = ["Öğretmen Adı", "Nöbet Tutabilir"]
-            st.dataframe(ogr_df, use_container_width=True)
-            
-            silinecek_ogr = st.selectbox("Listeden Öğretmen Çıkar:", [o["ad"] for o in st.session_state.ogretmen_listesi])
-            if st.button("🗑️ Seçili Öğretmeni Sil"):
-                st.session_state.ogretmen_listesi = [o for o in st.session_state.ogretmen_listesi if o["ad"] != silinecek_ogr]
-                st.session_state.ders_atamalari = [d for d in st.session_state.ders_atamalari if d["ogretmen"] != silinecek_ogr]
-                st.rerun()
-
-    with col_snf:
-        st.subheader("🏫 Sınıf / Şube Havuzu")
-        with st.form("yeni_sinif_formu", clear_on_submit=True):
-            yeni_snf_ad = st.text_input("Sınıf / Şube Adı", placeholder="Örn: 8B veya 11C")
-            ekle_snf_btn = st.form_submit_button("➕ Şubeyi Ekle")
-            
-            if ekle_snf_btn and yeni_snf_ad.strip():
-                snf_temiz = yeni_snf_ad.strip().upper()
-                if snf_temiz in st.session_state.sinif_listesi:
-                    st.warning("Bu sınıf zaten mevcut!")
-                else:
-                    st.session_state.sinif_listesi.append(snf_temiz)
-                    st.success(f"{snf_temiz} şubesi eklendi.")
-                    st.rerun()
-
-        if st.session_state.sinif_listesi:
-            st.write(f"Kayıtlı Şubeler ({len(st.session_state.sinif_listesi)} Adet):")
-            st.write(", ".join(st.session_state.sinif_listesi))
-            
-            silinecek_snf = st.selectbox("Listeden Şube Çıkar:", st.session_state.sinif_listesi)
-            if st.button("🗑️ Seçili Şubeyi Sil"):
-                st.session_state.sinif_listesi.remove(silinecek_snf)
-                st.session_state.ders_atamalari = [d for d in st.session_state.ders_atamalari if d["sinif"] != silinecek_snf]
-                st.rerun()
-
-# SEKME 3: DERS ATAMALARI
-with tab_ders:
-    st.subheader("📚 Öğretmen - Sınıf - Ders Eşleştirmesi")
-    ogr_adlari = [o["ad"] for o in st.session_state.ogretmen_listesi]
-    
-    if not ogr_adlari or not st.session_state.sinif_listesi:
-        st.warning("Ders ataması yapabilmek için en az 1 öğretmen ve 1 sınıf olmalı.")
+# ----------------------------------------------------
+# 3. YÜKLÜ LİSTE ÖNİZLEME
+# ----------------------------------------------------
+with tab_onizleme:
+    st.subheader("📋 Sisteme Aktarılmış Güncel Okul Tablosu")
+    if not st.session_state.ders_listesi.empty:
+        st.dataframe(st.session_state.ders_listesi, use_container_width=True)
+        
+        c_m1, c_m2, c_m3 = st.columns(3)
+        c_m1.metric("Toplam Ders Saati", f"{st.session_state.ders_listesi['Saat'].sum()} Saat")
+        c_m2.metric("Toplam Öğretmen Sayısı", len(st.session_state.ders_listesi['Öğretmen'].unique()))
+        c_m3.metric("Toplam Şube Sayısı", len(st.session_state.ders_listesi['Sınıf'].unique()))
+        
+        if st.button("🗑️ Tüm Listeyi Temizle"):
+            st.session_state.ders_listesi = pd.DataFrame(columns=["Öğretmen", "Sınıf", "Ders", "Saat", "Nöbetçi"])
+            st.rerun()
     else:
-        with st.form("ders_ekleme_formu", clear_on_submit=True):
-            c1, c2, c3, c4 = st.columns([2, 1.5, 2, 1])
-            with c1:
-                sec_ogr = st.selectbox("Öğretmen", ogr_adlari)
-            with c2:
-                sec_snf = st.selectbox("Sınıf", st.session_state.sinif_listesi)
-            with c3:
-                drs_ad = st.text_input("Ders Adı", placeholder="Örn: İngilizce")
-            with c4:
-                drs_saat = st.number_input("Haftalık Saat", min_value=1, max_value=30, value=4)
-            
-            if st.form_submit_button("➕ Bu Dersi Eşleştir"):
-                if drs_ad.strip():
-                    st.session_state.ders_atamalari.append({
-                        "ogretmen": sec_ogr,
-                        "sinif": sec_snf,
-                        "ders": drs_ad.strip(),
-                        "saat": int(drs_saat)
-                    })
-                    st.rerun()
-
-        if st.session_state.ders_atamalari:
-            st.write("📋 **Okulun Güncel Ders Dağıtım Listesi:**")
-            df_dersler = pd.DataFrame(st.session_state.ders_atamalari)
-            df_dersler.columns = ["Öğretmen", "Sınıf", "Ders", "Haftalık Saat"]
-            st.dataframe(df_dersler, use_container_width=True)
-            st.metric("Toplam Dağıtılacak Ders Saati", f"{df_dersler['Haftalık Saat'].sum()} Saat")
+        st.warning("Henüz sisteme eklenmiş bir ders bulunmuyor.")

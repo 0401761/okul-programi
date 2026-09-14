@@ -52,7 +52,7 @@ if "egitim_yili" not in st.session_state:
 if "mudur_adi" not in st.session_state:
     st.session_state.mudur_adi = "Okul Müdürü"
 
-# Zil Saatleri Parametreleri
+# Zil Saatleri Parametreleri (ÖĞLEDEN ÖNCE 5 DERS STANDARDINA AYARLANDI)
 if "ders_baslangic" not in st.session_state:
     st.session_state.ders_baslangic = "08:30"
 if "ders_dk" not in st.session_state:
@@ -72,8 +72,9 @@ if "teneffus_sureleri" not in st.session_state:
         7: 10
     }
 
+# Öğle Arası: 5. Dersten sonra (~12:40)
 if "ogle_arasi_ders" not in st.session_state:
-    st.session_state.ogle_arasi_ders = 4
+    st.session_state.ogle_arasi_ders = 5
 if "ogle_arasi_dk" not in st.session_state:
     st.session_state.ogle_arasi_dk = 45
 
@@ -366,14 +367,12 @@ def stil_carsaf_excel_uret(veri_matrisi, gun_saat_listesi, baslik_tur="Öğretme
     
     day_colors = ["1F4E79", "2F5597", "1F4E79", "2F5597", "1F4E79"]
     
-    # Başlık
     ws.merge_cells("A1:AL1")
     ws["A1"] = f"T.C. MİLLÎ EĞİTİM BAKANLIĞI - {okul_adi.upper()} MÜDÜRLÜĞÜ - HAFTALIK {baslik_tur.upper()} DERS ÇARŞAF ÇİZELGESİ"
     ws["A1"].font = title_font
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 25
     
-    # 2. ve 3. Satır Başlıklar
     ws.merge_cells("A2:A3")
     ws["A2"] = baslik_tur
     ws["A2"].font = Font(name="Calibri", size=11, bold=True)
@@ -406,7 +405,6 @@ def stil_carsaf_excel_uret(veri_matrisi, gun_saat_listesi, baslik_tur="Öğretme
     ws.row_dimensions[2].height = 22
     ws.row_dimensions[3].height = 20
     
-    # Veri Satırları
     for r_idx, (r_name, r_vals) in enumerate(veri_matrisi.items(), start=4):
         ws.row_dimensions[r_idx].height = 20
         c1 = ws.cell(row=r_idx, column=1, value=r_name)
@@ -721,7 +719,7 @@ tum_ogretmenler = sorted(list(df_aktif["Öğretmen"].unique())) if not df_aktif.
 siniflar = sorted(list(df_aktif["Sınıf"].unique())) if not df_aktif.empty else []
 
 # ----------------------------------------------------
-# TAB 3: GÜNE ÖZEL KİLİT MATRİSİ (DİNAMİK ÖĞLE ARASI)
+# TAB 3: GÜNE ÖZEL KİLİT MATRİSİ (İLK 5 DERS & SONRAKİ SAATLER)
 # ----------------------------------------------------
 with tab_kilit:
     if not tum_ogretmenler:
@@ -737,12 +735,12 @@ with tab_kilit:
         if secili_ogr in st.session_state.dondurulan_ogretmenler:
             st.warning(f"📌 **{secili_ogr} hocanın programı SABİTLENMİŞTİR.**")
 
-        # Dinamik Öğle Arası Sınırı ve Saat Hesabı
+        # Öğle arası dersi sınırı (Varsayılan: 5. ders sonrası)
         ogle_sinir = int(st.session_state.ogle_arasi_ders)
         zil_vakitleri = zil_saatlerini_uret(8)
         ogle_bitis_saat = zil_vakitleri[ogle_sinir - 1].split("-")[1] if ogle_sinir <= len(zil_vakitleri) else "12:40"
         
-        st.markdown("#### ⚡ Güne Özel Hızlı Kilit İşlemleri (Öğle Arası Duyarlı)")
+        st.markdown("#### ⚡ Güne Özel Hızlı Kilit İşlemleri (Öğleden Önce 5 Ders Sınırı)")
         c_b_tam, c_b_sabah, c_b_ogle, c_b_sifirla = st.columns(4)
         
         with c_b_tam:
@@ -752,16 +750,16 @@ with tab_kilit:
                 st.rerun()
                 
         with c_b_sabah:
-            # 1. dersten öğle arasına kadar olan dersleri kilitler
-            btn_sabah_label = f"☀️ {hedef_gun} Sabah (1-{ogle_sinir}. Ders | ~{ogle_bitis_saat} Öncesi)"
+            # 1'den 5'e kadar olan dersleri kilitler (İlk 5 Ders)
+            btn_sabah_label = f"☀️ {hedef_gun} Sabah (İlk {ogle_sinir} Ders | 1-{ogle_sinir})"
             if st.button(btn_sabah_label, use_container_width=True):
                 for s in range(min(ogle_sinir, st.session_state.gun_saatleri[hedef_gun])):
                     st.session_state.kilitler.add((secili_ogr, hedef_gun, s))
                 st.rerun()
                 
         with c_b_ogle:
-            # Öğle arasından sonraki dersleri kilitler
-            btn_ogle_label = f"🌙 {hedef_gun} Öğle ({ogle_sinir+1}+ Ders | ~{ogle_bitis_saat} Sonrası)"
+            # 5. dersten sonraki dersleri kilitler (Sonraki Saatler: 6+)
+            btn_ogle_label = f"🌙 {hedef_gun} Öğle ({ogle_sinir+1}+ Dersler | Sonraki Saatler)"
             if st.button(btn_ogle_label, use_container_width=True):
                 for s in range(ogle_sinir, st.session_state.gun_saatleri[hedef_gun]):
                     st.session_state.kilitler.add((secili_ogr, hedef_gun, s))
@@ -1015,7 +1013,6 @@ with tab_carsaf:
         with c_tur:
             carsaf_gorunum = st.radio("Çarşaf Türü:", ["👨‍🏫 Öğretmen Bazlı Çarşaf", "🏫 Sınıf Bazlı Çarşaf"], horizontal=True)
 
-        # Gün ve saat çoklu sütun başlıkları (MultiIndex)
         col_tuples = []
         gun_saat_listesi = []
         for g in GUNLER:
@@ -1027,7 +1024,6 @@ with tab_carsaf:
         multi_cols = pd.MultiIndex.from_tuples(col_tuples, names=["Gün", "Saat"])
         
         if "Öğretmen" in carsaf_gorunum:
-            # Satırlar: Öğretmenler, Hücre: 5A-MAT
             data_dict = {}
             excel_matrisi = {}
             for ogr in tum_ogretmenler:
@@ -1050,7 +1046,6 @@ with tab_carsaf:
             df_carsaf = pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols)
             st.dataframe(df_carsaf, use_container_width=True, height=450)
             
-            # Özel Stilize Edilmiş Excel İndir (Kalın Gün Çizgili)
             excel_bytes = stil_carsaf_excel_uret(excel_matrisi, gun_saat_listesi, "Öğretmen", st.session_state.okul_adi)
             st.download_button(
                 label="📥 Öğretmen Çarşafını Renkli & Ayrılmış Çizgili Excel Olarak İndir (.xlsx)",
@@ -1060,7 +1055,6 @@ with tab_carsaf:
                 use_container_width=True
             )
         else:
-            # Satırlar: Sınıflar, Hücre: MAT-A.Can
             data_dict = {}
             excel_matrisi = {}
             for snf in siniflar:

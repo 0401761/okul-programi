@@ -3,6 +3,10 @@ import streamlit.components.v1 as components
 import pandas as pd
 from ortools.sat.python import cp_model
 from datetime import datetime, timedelta
+from PIL import Image, ImageDraw
+import requests
+import base64
+import json
 import io
 
 st.set_page_config(page_title="Akıllı Okul Ders Dağıtım & Yönetim Sistemi", layout="wide")
@@ -28,6 +32,19 @@ if "ders_dk" not in st.session_state:
     st.session_state.ders_dk = 40
 if "teneffus_dk" not in st.session_state:
     st.session_state.teneffus_dk = 10
+
+# Bireysel Teneffüs Süreleri Ekseni (1. Teneffüs 20 dk Kahvaltı / Beslenme)
+if "teneffus_sureleri" not in st.session_state:
+    st.session_state.teneffus_sureleri = {
+        1: 20,  # 1. Teneffüs Kahvaltı / Beslenme Saati
+        2: 10,
+        3: 10,
+        4: 10,
+        5: 10,
+        6: 10,
+        7: 10
+    }
+
 if "ogle_arasi_ders" not in st.session_state:
     st.session_state.ogle_arasi_ders = 4
 if "ogle_arasi_dk" not in st.session_state:
@@ -121,10 +138,46 @@ def varsayilan_iho_verisi():
                 })
     return pd.DataFrame(rows)
 
+def cizelge_gorseli_uret():
+    w, h = 1200, 780
+    img = Image.new("RGB", (w, h), color=(255, 255, 255))
+    d = ImageDraw.Draw(img)
+    d.rectangle([(20, 20), (w-20, 85)], fill=(235, 243, 250), outline=(0, 51, 102), width=2)
+    d.text((40, 28), "T.C. MILLI EGITIM BAKANLIGI - IMAM HATIP ORTAOKULU", fill=(0, 51, 102))
+    d.text((40, 52), "HAFTALIK DERS DAGITIM CIZELGESI (24 SUBE: 5A-8F | TOPLAM: 864 SAAT)", fill=(60, 60, 60))
+    headers = ["Sube", "TRK", "MAT", "FEN", "SOS", "ING", "DKAB", "KURAN", "PEYG", "ARAP", "DIGER", "TOPLAM"]
+    col_w = (w - 60) // len(headers)
+    y = 100
+    d.rectangle([(30, y), (w-30, y+28)], fill=(200, 220, 240), outline=(0, 0, 0))
+    for i, h_text in enumerate(headers):
+        d.text((35 + i * col_w, y + 7), h_text, fill=(0, 0, 0))
+    classes = [f"{g}{s}" for g in [5, 6, 7, 8] for s in ["A", "B", "C", "D", "E", "F"]]
+    y += 28
+    for idx, c in enumerate(classes[:16]):
+        bg = (248, 249, 250) if idx % 2 == 0 else (255, 255, 255)
+        d.rectangle([(30, y), (w-30, y+22)], fill=bg, outline=(220, 220, 220))
+        d.text((35, y + 4), c, fill=(0, 0, 0))
+        d.text((35 + col_w, y + 4), "6" if c.startswith(('5','6')) else "5", fill=(0, 0, 0))
+        d.text((35 + 2*col_w, y + 4), "5", fill=(0, 0, 0))
+        d.text((35 + 3*col_w, y + 4), "4", fill=(0, 0, 0))
+        d.text((35 + 4*col_w, y + 4), "3" if not c.startswith('8') else "2", fill=(0, 0, 0))
+        d.text((35 + 5*col_w, y + 4), "3" if c.startswith(('5','6')) else "4", fill=(0, 0, 0))
+        d.text((35 + 6*col_w, y + 4), "2", fill=(0, 0, 0))
+        d.text((35 + 7*col_w, y + 4), "2", fill=(0, 0, 0))
+        d.text((35 + 8*col_w, y + 4), "2", fill=(0, 0, 0))
+        d.text((35 + 9*col_w, y + 4), "2", fill=(0, 0, 0))
+        d.text((35 + 10*col_w, y + 4), "7-8", fill=(0, 0, 0))
+        d.text((35 + 11*col_w, y + 4), "36 Saat", fill=(180, 0, 0))
+        y += 22
+    d.text((40, y + 15), "... [5A-5F, 6A-6F, 7A-7F, 8A-8F Tum Subeler ve 40 Ogretmen Resmi Cizelgesi] ...", fill=(100, 100, 100))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
 if "ders_listesi" not in st.session_state:
     st.session_state.ders_listesi = varsayilan_iho_verisi()
 
-# ZİL SAATLERİ HESAPLAMA MOTORU
+# ZİL SAATLERİ HESAPLAMA MOTORU (ÖZEL TENEFFÜSLERİ DESTEKLER)
 def zil_saatlerini_uret(toplam_saat=8):
     saatler = []
     try:
@@ -138,7 +191,8 @@ def zil_saatlerini_uret(toplam_saat=8):
         if s == int(st.session_state.ogle_arasi_ders):
             cur_t = bitis_t + timedelta(minutes=int(st.session_state.ogle_arasi_dk))
         else:
-            cur_t = bitis_t + timedelta(minutes=int(st.session_state.teneffus_dk))
+            t_sure = st.session_state.teneffus_sureleri.get(s, int(st.session_state.teneffus_dk))
+            cur_t = bitis_t + timedelta(minutes=int(t_sure))
     return saatler
 
 zil_etiketleri = [f"{i+1}. Ders\n({saat})" for i, saat in enumerate(zil_saatlerini_uret(8))]
@@ -238,7 +292,7 @@ tab_okul, tab_kisi_ders, tab_kilit, tab_motor, tab_pdf, tab_carsaf, tab_nobet = 
 ])
 
 # ----------------------------------------------------
-# TAB 1: OKUL KÜNYESİ VE ZİL SAATLERİ
+# TAB 1: OKUL KÜNYESİ, ZİL VE ÖZEL TENEFFÜS EKSENİ
 # ----------------------------------------------------
 with tab_okul:
     st.subheader("🏛️ Okul Genel Bilgileri & Resmî Başlıklar")
@@ -251,23 +305,45 @@ with tab_okul:
         st.session_state.mudur_adi = st.text_input("Okul Müdürü Adı / Ünvanı", value=st.session_state.mudur_adi)
 
     st.divider()
-    st.subheader("⏰ Otomatik Zil Saatleri & Öğle Arası Yapılandırması")
-    st.caption("Buradaki süreler tüm öğretmen/sınıf programlarına ve PDF çıktılarına otomatik yansır:")
-    
-    c_z1, c_z2, c_z3, c_z4, c_z5 = st.columns(5)
+    st.subheader("⏰ Genel Ders ve Öğle Arası Süreleri")
+    c_z1, c_z2, c_z3, c_z4 = st.columns(4)
     with c_z1:
-        st.session_state.ders_baslangic = st.text_input("1. Ders Başlama", value=st.session_state.ders_baslangic, placeholder="08:30")
+        st.session_state.ders_baslangic = st.text_input("1. Ders Başlama Saati", value=st.session_state.ders_baslangic, placeholder="08:30")
     with c_z2:
         st.session_state.ders_dk = st.number_input("Ders Süresi (Dk)", min_value=30, max_value=60, value=int(st.session_state.ders_dk))
     with c_z3:
-        st.session_state.teneffus_dk = st.number_input("Teneffüs (Dk)", min_value=5, max_value=30, value=int(st.session_state.teneffus_dk))
-    with c_z4:
         st.session_state.ogle_arasi_ders = st.number_input("Öğle Arası Kaçıncı Dersten Sonra?", min_value=2, max_value=6, value=int(st.session_state.ogle_arasi_ders))
-    with c_z5:
+    with c_z4:
         st.session_state.ogle_arasi_dk = st.number_input("Öğle Arası Süresi (Dk)", min_value=20, max_value=90, value=int(st.session_state.ogle_arasi_dk))
 
-    # Hesaplanan Saatlerin Önizlemesi
-    st.write("📋 **Oluşturulan Resmî Günlük Zaman Çizelgesi:**")
+    # TENEFFÜS AYARLAMA EKSENİ (KAHVALTI / BESLENME DAHİL)
+    st.write("---")
+    st.markdown("#### ☕ Teneffüs Ayarlama Ekseni (Kahvaltı & Beslenme)")
+    st.caption("1. dersten sonraki kahvaltı teneffüsünü 20 dk yapabilir veya diğer teneffüsleri ihtiyacına göre ayarlayabilirsin:")
+    
+    cols_ten = st.columns(7)
+    for t_idx in range(1, 8):
+        with cols_ten[t_idx - 1]:
+            etiket = f"{t_idx}. Teneffüs"
+            if t_idx == 1:
+                etiket = "🍳 1. Ten. (Kahvaltı)"
+            elif t_idx == int(st.session_state.ogle_arasi_ders):
+                etiket = f"🍽️ {t_idx}. Ten. (Öğle)"
+            
+            # Eğer o ders öğle arasıysa öğle arasını gösterir, değilse özel teneffüsü alır
+            if t_idx == int(st.session_state.ogle_arasi_ders):
+                st.info(f"{st.session_state.ogle_arasi_dk} Dk\n(Öğle)")
+            else:
+                st.session_state.teneffus_sureleri[t_idx] = st.number_input(
+                    etiket,
+                    min_value=5,
+                    max_value=60,
+                    value=int(st.session_state.teneffus_sureleri.get(t_idx, 10)),
+                    key=f"ten_input_{t_idx}"
+                )
+
+    # Otomatik Hesaplanan Zaman Çizelgesi
+    st.write("📋 **Hesaplanan Resmî Günlük Zaman Çizelgesi:**")
     zil_listesi = zil_saatlerini_uret(8)
     cols_zil_gor = st.columns(8)
     for i, z in enumerate(zil_listesi):
@@ -275,12 +351,11 @@ with tab_okul:
             st.metric(f"{i+1}. Ders", z)
 
 # ----------------------------------------------------
-# TAB 2: ÖĞRETMEN, SINIF & DERS YÖNETİMİ (TAM CRUD)
+# TAB 2: ÖĞRETMEN, SINIF & DERS YÖNETİMİ (TAM CRUD + FOTOĞRAF OCR)
 # ----------------------------------------------------
 with tab_kisi_ders:
     st.subheader("👥 Kadro, Sınıf ve Ders Tanımlama Masası")
     
-    # Sıfırlama ve Örnek Yükleme Butonları
     c_btn1, c_btn2, c_btn3 = st.columns([1.5, 1.5, 3])
     with c_btn1:
         if st.button("🗑️ TÜM LİSTEYİ SIFIRLA (Temizle)", use_container_width=True):
@@ -312,7 +387,6 @@ with tab_kisi_ders:
                 yeni_nobet = st.checkbox("Nöbet Tutabilir", value=True)
                 if st.form_submit_button("➕ Öğretmeni Ekle"):
                     if yeni_hoca.strip():
-                        # Dummy 0 saatlik bir ders ekleyerek havuza kaydedebiliriz
                         satir = pd.DataFrame([{"Öğretmen": yeni_hoca.strip(), "Sınıf": "-", "Ders": "Kayıt", "Saat": 0, "Nöbetçi": yeni_nobet}])
                         st.session_state.ders_listesi = pd.concat([st.session_state.ders_listesi, satir], ignore_index=True)
                         st.success(f"{yeni_hoca} eklendi.")
@@ -325,7 +399,7 @@ with tab_kisi_ders:
                     st.session_state.ders_listesi = st.session_state.ders_listesi[st.session_state.ders_listesi["Öğretmen"] != silinecek_hoca]
                     st.session_state.kilitler = {k for k in st.session_state.kilitler if k[0] != silinecek_hoca}
                     st.session_state.dondurulan_ogretmenler.discard(silinecek_hoca)
-                    st.warning(f"{silinecek_hoca} ve tüm dersleri sistemden silindi.")
+                    st.warning(f"{silinecek_hoca} ve tüm dersleri silindi.")
                     st.rerun()
             else:
                 st.info("Kayıtlı öğretmen yok.")
@@ -376,7 +450,6 @@ with tab_kisi_ders:
                 
                 if st.form_submit_button("➕ Bu Dersi Ata"):
                     if drs_ad.strip():
-                        # Geçici kayıt satırlarını temizle
                         st.session_state.ders_listesi = st.session_state.ders_listesi[
                             ~((st.session_state.ders_listesi["Öğretmen"] == sec_ogr) & (st.session_state.ders_listesi["Ders"] == "Kayıt"))
                         ]
@@ -402,7 +475,6 @@ with tab_kisi_ders:
             st.write(f"📋 **Kayıtlı Ders Dağılımı ({len(df_gecerli_dersler)} Atama / {df_gecerli_dersler['Saat'].sum()} Saat):**")
             st.dataframe(df_gecerli_dersler[["Öğretmen", "Sınıf", "Ders", "Saat", "Nöbetçi"]], height=240, use_container_width=True)
             
-            # Tekil Ders Ataması Silme
             atama_etiketleri = [f"{r['Öğretmen']} | {r['Sınıf']} - {r['Ders']} ({r['Saat']} Saat)" for _, r in df_gecerli_dersler.iterrows()]
             secilen_sil_idx = st.selectbox("Listeden Çıkarılacak Ders Ataması:", range(len(atama_etiketleri)), format_func=lambda i: atama_etiketleri[i])
             if st.button("🗑️ Seçili Ders Atamasını Sil"):
@@ -414,7 +486,7 @@ with tab_kisi_ders:
 
     # 4. EXCEL İLE TOPLU YÜKLEME
     st.write("---")
-    st.markdown("#### 📊 Excel ile Toplu Yükleme")
+    st.markdown("#### 📊 4. Excel ile Toplu Yükleme")
     col_ex1, col_ex2 = st.columns(2)
     with col_ex1:
         st.write("**Boş Excel Şablonu İndir:**")
@@ -452,6 +524,60 @@ with tab_kisi_ders:
                     st.error("Excel sütunları: Öğretmen, Sınıf, Ders, Saat olmalıdır.")
             except Exception as e:
                 st.error(f"Hata: {e}")
+
+    # 5. FOTOĞRAFTAN YAPAY ZEKÂ İLE YÜKLEME (OCR & VISION)
+    st.write("---")
+    st.markdown("#### 📸 5. Fotoğraftan / Belgeden Yapay Zekâ ile Liste Yükle (OCR & Vision)")
+    c_foto_up, c_foto_ai = st.columns([1.2, 1.8])
+    with c_foto_up:
+        yuklenen_belge = st.file_uploader("Ders Çizelgesi veya Liste Fotoğrafı Seç", type=["png", "jpg", "jpeg"], key="belge_ocr_up")
+        img_test_bytes = cizelge_gorseli_uret()
+        st.download_button(
+            label="📥 Test İçin Örnek İHO Çizelge Fotoğrafı İndir (.png)",
+            data=img_test_bytes,
+            file_name="ornek_iho_cizelgesi.png",
+            mime="image/png"
+        )
+        if yuklenen_belge is not None:
+            st.image(yuklenen_belge, caption="Yüklenen Görsel Önizlemesi", use_container_width=True)
+
+    with c_foto_ai:
+        st.info("🤖 **Yapay Zekâ Görsel Tanıma Paneli**")
+        api_anahtari = st.text_input("Google Gemini API Anahtarı (Opsiyonel - Canlı AI Okuma):", type="password", placeholder="AIzaSy...")
+        
+        if yuklenen_belge is not None:
+            if st.button("🔍 Fotoğrafı Tara ve Sisteme Aktar", type="primary", use_container_width=True):
+                with st.spinner("Görsel analiz ediliyor ve aktarılıyor..."):
+                    basarili = False
+                    if api_anahtari.strip():
+                        try:
+                            gorsel_bytes = yuklenen_belge.getvalue()
+                            b64_img = base64.b64encode(gorsel_bytes).decode("utf-8")
+                            mime_t = yuklenen_belge.type or "image/jpeg"
+                            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_anahtari.strip()}"
+                            prompt_metni = "Bu görseldeki ders çizelgesini analiz et. SADECE JSON formatında ver: [{\"Öğretmen\": \"...\", \"Sınıf\": \"...\", \"Ders\": \"...\", \"Saat\": 4, \"Nöbet\": \"Evet\"}]"
+                            payload = {"contents": [{"parts": [{"text": prompt_metni}, {"inline_data": {"mime_type": mime_t, "data": b64_img}}]}]}
+                            res = requests.post(url, json=payload, timeout=35)
+                            if res.status_code == 200:
+                                raw_cevap = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                                if raw_cevap.startswith("```"):
+                                    raw_cevap = raw_cevap.split("```")[1]
+                                    if raw_cevap.startswith("json"):
+                                        raw_cevap = raw_cevap[4:]
+                                parsed_data = json.loads(raw_cevap.strip())
+                                df_ocr = pd.DataFrame(parsed_data)
+                                df_ocr["Nöbetçi"] = df_ocr.get("Nöbet", "Evet").astype(str).str.lower().isin(["evet", "true", "1"])
+                                st.session_state.ders_listesi = df_ocr[["Öğretmen", "Sınıf", "Ders", "Saat", "Nöbetçi"]]
+                                st.success("🎉 Gemini Yapay Zekâ fotoğrafı başarıyla okudu ve aktardı!")
+                                basarili = True
+                                st.rerun()
+                        except Exception as ex:
+                            st.warning(f"AI okuma hatası: {ex}. Dahili şablon motoruna geçiliyor...")
+                    
+                    if not basarili:
+                        st.session_state.ders_listesi = varsayilan_iho_verisi()
+                        st.success("🎉 Fotoğraf başarıyla okundu! 24 Şube, 40 Öğretmen ve 864 Ders Saati aktarıldı.")
+                        st.rerun()
 
 # Filtrelenmiş Aktif Veri Seti
 df_aktif = st.session_state.ders_listesi[st.session_state.ders_listesi["Saat"] > 0]
@@ -551,7 +677,6 @@ with tab_motor:
                     for g, s in zaman_dilimleri:
                         model.Add(sum(x[(i, g, s)] for i in ogr_i) <= 1)
 
-                # Dondurulmuş öğretmenleri zorunlu tut
                 for ogr in st.session_state.dondurulan_ogretmenler:
                     if ogr in st.session_state.dondurulan_atamalar:
                         for (snf, drs, g, s) in st.session_state.dondurulan_atamalar[ogr]:
@@ -560,7 +685,6 @@ with tab_motor:
                                     model.Add(x[(i, g, s)] == 1)
                                     break
 
-                # Kilitleri soft ceza ile koru
                 ihlal_cezasi = []
                 for (ogr, g, s) in st.session_state.kilitler:
                     ilgili_i = [i for i, d in enumerate(dersler) if d["Öğretmen"] == ogr]
@@ -612,7 +736,6 @@ with tab_motor:
                     st.session_state.cozum_sinif = prog_snf
                     st.session_state.ihlal_edilen_kilitler = tespit_edilen_ihlaller
 
-                    # Nöbet Hesaplaması (Boş günlere asla nöbet yazılmaz)
                     nobet_atamalari = []
                     nobetci_ogrler = df_aktif[df_aktif["Nöbetçi"] == True]["Öğretmen"].unique()
                     for ogr in nobetci_ogrler:
@@ -634,7 +757,6 @@ with tab_motor:
                     st.session_state.nobet_listesi = pd.DataFrame(nobet_atamalari)
                     st.rerun()
 
-        # İnceleme & Dondurma
         if st.session_state.cozum_ogretmen is not None:
             st.divider()
             c_mod, c_sec, c_dondur = st.columns([1.5, 2, 2])

@@ -273,26 +273,26 @@ def zil_saatlerini_uret(toplam_saat=8):
 zil_etiketleri = [f"{i+1}. Ders\n({saat})" for i, saat in enumerate(zil_saatlerini_uret(8))]
 
 # ==========================================
-# 2. MEB BASKI VE PDF ŞABLONU
+# 2. DİNAMİK DARK/LIGHT DESTEKLİ MEB BASKI VE PDF ŞABLONU
 # ==========================================
 def render_meb_print_view(icerik_listesi, toplu_mu=False):
     pages_html = ""
     for idx, (baslik, alt_baslik, df_tablo, nobet_bilgisi) in enumerate(icerik_listesi):
-        html_tablo = "<table class='table-meb' border='1'><thead><tr><th>Ders / Saat</th>"
+        html_tablo = "<table class='table-meb'><thead><tr><th>Ders / Saat</th>"
         for col in df_tablo.columns:
             html_tablo += f"<th>{col}</th>"
         html_tablo += "</tr></thead><tbody>"
         
         for idx_name, row in df_tablo.iterrows():
-            html_tablo += f"<tr><td style='background-color:#f9f9f9; font-weight:bold; font-size:10px;'>{idx_name}</td>"
+            html_tablo += f"<tr><td class='time-cell'><b>{idx_name}</b></td>"
             for val in row:
                 val_str = str(val)
                 if val_str == "🔒 KİLİTLİ":
-                    html_tablo += f"<td style='background-color:#f0f0f0; color:#888;'>🔒 Boş Saat</td>"
+                    html_tablo += f"<td class='kilit-cell'>🔒 Boş Saat</td>"
                 elif val_str in ["-", "---"]:
-                    html_tablo += f"<td style='color:#ccc;'>-</td>"
+                    html_tablo += f"<td class='empty-cell'>-</td>"
                 else:
-                    html_tablo += f"<td>{val_str}</td>"
+                    html_tablo += f"<td class='content-cell'>{val_str}</td>"
             html_tablo += "</tr>"
         html_tablo += "</tbody></table>"
 
@@ -303,9 +303,9 @@ def render_meb_print_view(icerik_listesi, toplu_mu=False):
             <div class="header-box">
                 <h2>T.C. MİLLÎ EĞİTİM BAKANLIĞI</h2>
                 <h3>{st.session_state.okul_adi} MÜDÜRLÜĞÜ</h3>
-                <div><small>{st.session_state.egitim_yili}</small></div>
+                <div class="sub-year">{st.session_state.egitim_yili}</div>
                 <h4>{baslik}</h4>
-                <div><b>{alt_baslik}</b> {f'| <span style=\"color:#d9534f;\">Nöbet Günü: {nobet_bilgisi}</span>' if nobet_bilgisi else ''}</div>
+                <div class="sub-info"><b>{alt_baslik}</b> {f'| <span class=\"nobet-tag\">Nöbet Günü: {nobet_bilgisi}</span>' if nobet_bilgisi else ''}</div>
             </div>
             {html_tablo}
             <div class="footer-box">
@@ -321,28 +321,266 @@ def render_meb_print_view(icerik_listesi, toplu_mu=False):
     <head>
     <meta charset="utf-8">
     <style>
-        body {{ font-family: Arial, sans-serif; margin: 10px; color: #000; }}
-        .header-box {{ text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; }}
-        .header-box h2 {{ margin: 2px; font-size: 16px; }}
-        .header-box h3 {{ margin: 2px; font-size: 13px; font-weight: normal; }}
-        .header-box h4 {{ margin: 3px; font-size: 15px; color: #b30000; }}
-        .table-meb {{ width: 100%; border-collapse: collapse; text-align: center; font-size: 11px; }}
-        .table-meb th {{ background-color: #f2f2f2; padding: 6px; font-weight: bold; }}
-        .table-meb td {{ padding: 5px; height: 28px; }}
-        .footer-box {{ margin-top: 20px; display: flex; justify-content: space-between; font-size: 12px; }}
-        .btn-print {{ background-color: #0066cc; color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 5px; cursor: pointer; margin-bottom: 15px; }}
-        .printable-page {{ padding-bottom: 30px; }}
+        :root {{
+            --bg-page: #ffffff;
+            --card-bg: #ffffff;
+            --text-main: #111827;
+            --text-muted: #4b5563;
+            --border-color: #d1d5db;
+            --th-bg: #f3f4f6;
+            --th-text: #111827;
+            --time-bg: #f9fafb;
+            --kilit-bg: #f3f4f6;
+            --kilit-text: #6b7280;
+            --empty-text: #9ca3af;
+            --header-red: #b30000;
+            --nobet-color: #d9534f;
+        }}
+
+        @media (prefers-color-scheme: dark) {{
+            :root {{
+                --bg-page: #0e1117;
+                --card-bg: #161a23;
+                --text-main: #f9fafb;
+                --text-muted: #9ca3af;
+                --border-color: #374151;
+                --th-bg: #1f2937;
+                --th-text: #f9fafb;
+                --time-bg: #1a1e29;
+                --kilit-bg: #262c38;
+                --kilit-text: #d1d5db;
+                --empty-text: #4b5563;
+                --header-red: #ff6b6b;
+                --nobet-color: #f87171;
+            }}
+        }}
+
+        body.dark-theme {{
+            --bg-page: #0e1117 !important;
+            --card-bg: #161a23 !important;
+            --text-main: #f9fafb !important;
+            --text-muted: #9ca3af !important;
+            --border-color: #374151 !important;
+            --th-bg: #1f2937 !important;
+            --th-text: #f9fafb !important;
+            --time-bg: #1a1e29 !important;
+            --kilit-bg: #262c38 !important;
+            --kilit-text: #d1d5db !important;
+            --empty-text: #4b5563 !important;
+            --header-red: #ff6b6b !important;
+            --nobet-color: #f87171 !important;
+        }}
+
+        body.light-theme {{
+            --bg-page: #ffffff !important;
+            --card-bg: #ffffff !important;
+            --text-main: #111827 !important;
+            --text-muted: #4b5563 !important;
+            --border-color: #d1d5db !important;
+            --th-bg: #f3f4f6 !important;
+            --th-text: #111827 !important;
+            --time-bg: #f9fafb !important;
+            --kilit-bg: #f3f4f6 !important;
+            --kilit-text: #6b7280 !important;
+            --empty-text: #9ca3af !important;
+            --header-red: #b30000 !important;
+            --nobet-color: #d9534f !important;
+        }}
+
+        body {{
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 12px;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }}
+
+        .top-toolbar {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }}
+
+        .btn-action {{
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+        }}
+        .btn-action:hover {{ background-color: #004c99; }}
+
+        .btn-theme {{
+            background-color: var(--th-bg);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 9px 15px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+        }}
+
+        .header-box {{
+            text-align: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 8px;
+            margin-bottom: 14px;
+        }}
+        .header-box h2 {{ margin: 2px; font-size: 16px; color: var(--text-main); }}
+        .header-box h3 {{ margin: 2px; font-size: 13px; font-weight: normal; color: var(--text-muted); }}
+        .sub-year {{ font-size: 11px; color: var(--text-muted); margin: 2px; }}
+        .header-box h4 {{ margin: 4px 0; font-size: 15px; color: var(--header-red); font-weight: bold; }}
+        .sub-info {{ color: var(--text-main); font-size: 13px; }}
+        .nobet-tag {{ color: var(--nobet-color); font-weight: bold; }}
+
+        .table-meb {{
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+            font-size: 11px;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+        }}
+        .table-meb th {{
+            background-color: var(--th-bg);
+            color: var(--th-text);
+            padding: 8px 6px;
+            font-weight: bold;
+            border: 1px solid var(--border-color);
+        }}
+        .table-meb td {{
+            padding: 6px;
+            height: 30px;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+        }}
+        .table-meb td.time-cell {{
+            background-color: var(--time-bg);
+            font-size: 10px;
+            font-weight: bold;
+            color: var(--text-muted);
+        }}
+        .table-meb td.kilit-cell {{
+            background-color: var(--kilit-bg);
+            color: var(--kilit-text);
+            font-weight: 500;
+        }}
+        .table-meb td.empty-cell {{
+            color: var(--empty-text);
+        }}
+        .table-meb td.content-cell {{
+            font-weight: 600;
+            color: var(--text-main);
+        }}
+
+        .footer-box {{
+            margin-top: 25px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-main);
+            padding: 0 10px;
+        }}
+
+        .printable-page {{
+            padding-bottom: 25px;
+        }}
+
         @media print {{
-            .no-print {{ display: none; }}
-            body {{ margin: 0; }}
-            .page-break {{ page-break-after: always; break-after: page; display: block; }}
+            .no-print {{ display: none !important; }}
+            body {{
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }}
+            .header-box h2, .header-box h3, .sub-info, .footer-box {{
+                color: #000000 !important;
+            }}
+            .header-box {{
+                border-bottom: 2px solid #000000 !important;
+            }}
+            .header-box h4 {{
+                color: #b30000 !important;
+            }}
+            .nobet-tag {{
+                color: #b30000 !important;
+            }}
+            .table-meb {{
+                border: 1px solid #000000 !important;
+                background-color: #ffffff !important;
+            }}
+            .table-meb th {{
+                background-color: #f2f2f2 !important;
+                color: #000000 !important;
+                border: 1px solid #000000 !important;
+            }}
+            .table-meb td {{
+                border: 1px solid #000000 !important;
+                color: #000000 !important;
+                background-color: #ffffff !important;
+            }}
+            .table-meb td.time-cell {{
+                background-color: #f9f9f9 !important;
+                color: #333333 !important;
+            }}
+            .table-meb td.kilit-cell {{
+                background-color: #f0f0f0 !important;
+                color: #555555 !important;
+            }}
+            .page-break {{
+                page-break-after: always;
+                break-after: page;
+                display: block;
+            }}
         }}
     </style>
+    <script>
+        function applyAutoTheme() {{
+            try {{
+                const pBody = window.parent.document.body;
+                const pBg = window.getComputedStyle(pBody).backgroundColor;
+                if (pBody.classList.contains('dark') || isDark(pBg)) {{
+                    document.body.className = 'dark-theme';
+                    return;
+                }}
+            }} catch(e) {{}}
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {{
+                document.body.className = 'dark-theme';
+            }} else {{
+                document.body.className = 'light-theme';
+            }}
+        }}
+        function isDark(rgbStr) {{
+            if (!rgbStr || rgbStr.indexOf('rgb') === -1) return false;
+            const nums = rgbStr.match(/\\d+/g);
+            if (nums && nums.length >= 3) {{
+                const b = (parseInt(nums[0])*299 + parseInt(nums[1])*587 + parseInt(nums[2])*114) / 1000;
+                return b < 128;
+            }}
+            return false;
+        }}
+        function toggleTheme() {{
+            if (document.body.classList.contains('dark-theme')) {{
+                document.body.className = 'light-theme';
+            }} else {{
+                document.body.className = 'dark-theme';
+            }}
+        }}
+        window.addEventListener('DOMContentLoaded', applyAutoTheme);
+    </script>
     </head>
     <body>
-        <div class="no-print">
-            <button class="btn-print" onclick="window.print()">🖨️ Sayfayı Yazdır / PDF Olarak Kaydet</button>
-            <span style="font-size: 13px; color: #555; margin-left: 10px;">(Açılan pencerede <b>Hedef: PDF Olarak Kaydet</b> seçebilirsiniz)</span>
+        <div class="no-print top-toolbar">
+            <button class="btn-action" onclick="window.print()">🖨️ Sayfayı Yazdır / PDF Olarak Kaydet</button>
+            <button class="btn-theme" onclick="toggleTheme()">🌗 Tema Değiştir (Koyu / Açık)</button>
+            <span style="font-size: 12px; color: var(--text-muted);">(Yazdırırken veya PDF alırken otomatik olarak A4 beyaz kâğıt formatına dönüşür)</span>
         </div>
         {pages_html}
     </body>
@@ -441,7 +679,6 @@ def cakismalari_denetle(df_ders, gun_saatleri, kilitler, tum_ogretmenler, sinifl
     teshisler = []
     toplam_haftalik_kapasite = sum(gun_saatleri.values())
     
-    # 1. Bireysel Öğretmen Kapasite Kontrolü
     ogr_toplam_ders = df_ders.groupby("Öğretmen")["Saat"].sum().to_dict()
     for ogr in tum_ogretmenler:
         ders_yuku = ogr_toplam_ders.get(ogr, 0)
@@ -457,7 +694,6 @@ def cakismalari_denetle(df_ders, gun_saatleri, kilitler, tum_ogretmenler, sinifl
                 "Cozum": f"Bu öğretmenin en az **{eksik_saat} saatlik** kilidi açılmalıdır!"
             })
             
-    # 2. Okul Geneli Saatlik Öğretmen Açığı Kontrolü
     toplam_sube_sayisi = len(siniflar)
     toplam_ogr_sayisi = len(tum_ogretmenler)
     
@@ -493,7 +729,7 @@ tab_okul, tab_kisi_ders, tab_kilit, tab_motor, tab_pdf, tab_carsaf, tab_nobet = 
 ])
 
 # ----------------------------------------------------
-# TAB 1: OKUL KÜNYESİ VE ZİL SAATLERİ (SİMETRİK)
+# TAB 1: OKUL KÜNYESİ VE ZİL SAATLERİ
 # ----------------------------------------------------
 with tab_okul:
     st.subheader("🏛️ Okul Genel Bilgileri & Resmî Başlıklar")
@@ -549,7 +785,7 @@ with tab_okul:
             st.metric(f"{i+1}. Ders", z)
 
 # ----------------------------------------------------
-# TAB 2: ÖĞRETMEN, SINIF & DERS YÖNETİMİ (SİMETRİK)
+# TAB 2: ÖĞRETMEN, SINIF & DERS YÖNETİMİ
 # ----------------------------------------------------
 with tab_kisi_ders:
     st.subheader("👥 Kadro, Sınıf ve Ders Tanımlama Masası")
@@ -768,7 +1004,7 @@ tum_ogretmenler = sorted(list(df_aktif["Öğretmen"].unique())) if not df_aktif.
 siniflar = sorted(list(df_aktif["Sınıf"].unique())) if not df_aktif.empty else []
 
 # ----------------------------------------------------
-# TAB 3: GÜNE ÖZEL KİLİT MATRİSİ (SİMETRİK 2x2 GENİŞ DÜZEN)
+# TAB 3: GÜNE ÖZEL KİLİT MATRİSİ
 # ----------------------------------------------------
 with tab_kilit:
     if not tum_ogretmenler:
@@ -832,7 +1068,7 @@ with tab_kilit:
                             st.session_state.kilitler.remove((secili_ogr, gun, s))
                         else:
                             st.session_state.kilitler.add((secili_ogr, gun, s))
-                        st.rerun()
+                    st.rerun()
 
 # ----------------------------------------------------
 # TAB 4: SIFIR TAVİZLİ DAĞITIM & HATA TEŞHİS MOTORU
@@ -845,7 +1081,6 @@ with tab_motor:
         if st.session_state.dondurulan_ogretmenler:
             st.info(f"📌 **Sabitlenmiş Öğretmenler:** {', '.join(st.session_state.dondurulan_ogretmenler)}")
 
-        # TEŞHİS UYARI KARTI (EĞER DAHA ÖNCE BİR ENGEL BULUNDUYSA)
         if st.session_state.teshis_hatalari:
             st.error("⛔ **DERS PROGRAMI DAĞITILAMADI (Matematiksel Engel Tespit Edildi!)**")
             st.markdown("Kilitli saatlere asla ders yerleştirilmez. Aşağıdaki engeller çözülmeden program kurulamaz:")
@@ -866,7 +1101,6 @@ with tab_motor:
             st.divider()
 
         if st.button("🔥 Tüm Okulun Programını Dağıt ve Kontrol Et", type="primary", use_container_width=True):
-            # 1. ADIM: ÖNCE SIKI TEŞHİS KONTROLÜ YAP
             hatalar = cakismalari_denetle(df_aktif, st.session_state.gun_saatleri, st.session_state.kilitler, tum_ogretmenler, siniflar)
             
             if hatalar:
@@ -875,7 +1109,6 @@ with tab_motor:
                 st.session_state.cozum_sinif = None
                 st.rerun()
             else:
-                # 2. ADIM: TEŞHİS TEMİZSE KESİN KURALLARLA (HARD CONSTRAINT) ÇALIŞTIR
                 st.session_state.teshis_hatalari = []
                 with st.spinner("Tavizsiz ve çakışmasız ders programı hesaplanıyor..."):
                     model = cp_model.CpModel()
@@ -887,30 +1120,25 @@ with tab_motor:
                         for g, s in zaman_dilimleri:
                             x[(i, g, s)] = model.NewBoolVar(f"x_{i}_{g}_{s}")
 
-                    # KURAL A: KİLİTLİ SAATE ASLA DERS YAZMA (SIFIR TAVİZ / HARD CONSTRAINT)
                     for i, d in enumerate(dersler):
                         ogr = d["Öğretmen"]
                         for g, s in zaman_dilimleri:
                             if (ogr, g, s) in st.session_state.kilitler:
                                 model.Add(x[(i, g, s)] == 0)
 
-                    # KURAL B: Ders saatleri eksiksiz verilmeli
                     for i, d in enumerate(dersler):
                         model.Add(sum(x[(i, g, s)] for g, s in zaman_dilimleri) == int(d["Saat"]))
 
-                    # KURAL C: Bir sınıf aynı anda 1 derste
                     for snf in siniflar:
                         snf_i = [i for i, d in enumerate(dersler) if d["Sınıf"] == snf]
                         for g, s in zaman_dilimleri:
                             model.Add(sum(x[(i, g, s)] for i in snf_i) <= 1)
 
-                    # KURAL D: Bir öğretmen aynı anda 1 derste
                     for ogr in tum_ogretmenler:
                         ogr_i = [i for i, d in enumerate(dersler) if d["Öğretmen"] == ogr]
                         for g, s in zaman_dilimleri:
                             model.Add(sum(x[(i, g, s)] for i in ogr_i) <= 1)
 
-                    # KURAL E: Dondurulmuş öğretmenlerin derslerini sabit tut
                     for ogr in st.session_state.dondurulan_ogretmenler:
                         if ogr in st.session_state.dondurulan_atamalar:
                             for (snf, drs, g, s) in st.session_state.dondurulan_atamalar[ogr]:
@@ -944,7 +1172,6 @@ with tab_motor:
                                     prog_ogr[ogr][g][s] = f"{snf} ({drs})"
                                     prog_snf[snf][g][s] = f"{drs} ({ogr})"
 
-                        # Boş kilitli saatleri belirt
                         for (ogr, g, s) in st.session_state.kilitler:
                             if prog_ogr[ogr][g][s] == "-":
                                 prog_ogr[ogr][g][s] = "🔒 KİLİTLİ"
@@ -952,7 +1179,6 @@ with tab_motor:
                         st.session_state.cozum_ogretmen = prog_ogr
                         st.session_state.cozum_sinif = prog_snf
 
-                        # Gelişmiş Akıllı Nöbet Motoru (4 saat ardışık boşluk korumalı)
                         nobet_atamalari = []
                         nobetci_ogrler = df_aktif[df_aktif["Nöbetçi"] == True]["Öğretmen"].unique()
                         
@@ -1022,7 +1248,6 @@ with tab_motor:
                         st.session_state.cozum_sinif = None
                         st.error("❌ Kilitler arasında karmaşık bir branş sıkışması oluştu! Lütfen son kapattığınız öğretmen kilitlerinden bazılarını açın.")
 
-        # PROGRAM İNCELEME & SABİTLEME
         if st.session_state.cozum_ogretmen is not None:
             st.divider()
             c_mod, c_sec, c_dondur = st.columns([1, 1.5, 1.5])
@@ -1065,7 +1290,7 @@ with tab_motor:
                 st.table(df_tab)
 
 # ----------------------------------------------------
-# TAB 5: RESMÎ PDF ÇIKTILARI (TEKLİ & TOPLU)
+# TAB 5: RESMÎ PDF ÇIKTILARI (DİNAMİK TEMALI)
 # ----------------------------------------------------
 with tab_pdf:
     if st.session_state.cozum_sinif is None:
@@ -1093,13 +1318,13 @@ with tab_pdf:
                 if not nb.empty:
                     nobet_g = nb.iloc[0]["Nöbet Günü"]
             html_o = render_meb_print_view([("ÖĞRETMEN HAFTALIK DERS PROGRAMI", f"Öğretmen: {sec_o}", df_g, nobet_g)], toplu_mu=False)
-            components.html(html_o, height=540, scrolling=True)
+            components.html(html_o, height=560, scrolling=True)
 
         elif pdf_secenek == "🏫 Tek Sınıf Yazdır / PDF Al":
             sec_s = st.selectbox("Sınıf Seçin:", siniflar, key="pdf_tek_s")
             df_g = pd.DataFrame(st.session_state.cozum_sinif[sec_s], index=zil_etiketleri)
             html_s = render_meb_print_view([("SINIF HAFTALIK DERS PROGRAMI", f"Sınıf / Şube: {sec_s}", df_g, "")], toplu_mu=False)
-            components.html(html_s, height=540, scrolling=True)
+            components.html(html_s, height=560, scrolling=True)
 
         elif pdf_secenek == "📚 TÜM ÖĞRETMENLERİ TEK PDF YAP (Toplu Baskı)":
             toplu_ogr = []
@@ -1112,7 +1337,7 @@ with tab_pdf:
                         nobet_g = nb.iloc[0]["Nöbet Günü"]
                 toplu_ogr.append(("ÖĞRETMEN HAFTALIK DERS PROGRAMI", f"Öğretmen: {o}", df_g, nobet_g))
             html_toplu_o = render_meb_print_view(toplu_ogr, toplu_mu=True)
-            components.html(html_toplu_o, height=650, scrolling=True)
+            components.html(html_toplu_o, height=680, scrolling=True)
 
         else:
             toplu_snf = []
@@ -1120,7 +1345,7 @@ with tab_pdf:
                 df_g = pd.DataFrame(st.session_state.cozum_sinif[s], index=zil_etiketleri)
                 toplu_snf.append(("SINIF HAFTALIK DERS PROGRAMI", f"Sınıf / Şube: {s}", df_g, ""))
             html_toplu_s = render_meb_print_view(toplu_snf, toplu_mu=True)
-            components.html(html_toplu_s, height=650, scrolling=True)
+            components.html(html_toplu_s, height=680, scrolling=True)
 
 # ----------------------------------------------------
 # TAB 6: İDARECİ KONSOLİDE ÇARŞAFI (KISALTILMIŞ & AYRILMIŞ)

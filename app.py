@@ -19,182 +19,26 @@ st.set_page_config(page_title="Akıllı Okul Ders Dağıtım & Yönetim Sistemi"
 # ==========================================
 st.markdown("""
 <style>
-    /* =====================================================
-       KLASİK / SADE ARAYÜZ - İŞLEVSEL OKUL OTOMASYONU
-       Mevcut bileşenlerin mantığına dokunmaz; yalnızca
-       Streamlit'in varsayılan görünümünü daha düzenli yapar.
-       ===================================================== */
-    .stApp {
-        background: #f7f8fa !important;
-    }
-
-    .block-container {
-        max-width: 1500px !important;
-        padding-top: 1.15rem !important;
-        padding-bottom: 2rem !important;
-    }
-
-    /* Ana başlık */
-    h1 {
-        color: #183b63 !important;
-        font-size: 1.65rem !important;
-        font-weight: 700 !important;
-        margin-bottom: 0.65rem !important;
-        letter-spacing: -0.02em !important;
-    }
-
-    h2 {
-        color: #234a73 !important;
-        font-size: 1.25rem !important;
-        font-weight: 700 !important;
-    }
-
-    h3 {
-        color: #2f4f6f !important;
-        font-size: 1.05rem !important;
-        font-weight: 700 !important;
-    }
-
-    /* Ana sekmeler: klasik, temiz, kurumsal */
-    div[data-baseweb="tab-list"] {
-        gap: 4px !important;
-        border-bottom: 1px solid #cfd7e3 !important;
-        margin-bottom: 1rem !important;
-    }
-
-    button[data-baseweb="tab"] {
-        color: #4a5d73 !important;
-        background: transparent !important;
-        border-radius: 6px 6px 0 0 !important;
-        border: 1px solid transparent !important;
-        border-bottom: 3px solid transparent !important;
-        font-weight: 600 !important;
-        font-size: 0.86rem !important;
-        padding: 0.65rem 0.8rem !important;
-        min-height: 42px !important;
-    }
-
-    button[data-baseweb="tab"]:hover {
-        color: #1f4e79 !important;
-        background: #eef3f8 !important;
-    }
-
-    button[data-baseweb="tab"][aria-selected="true"] {
-        color: #163f69 !important;
-        background: #ffffff !important;
-        border-top: 1px solid #cfd7e3 !important;
-        border-left: 1px solid #cfd7e3 !important;
-        border-right: 1px solid #cfd7e3 !important;
-        border-bottom: 3px solid #1f5f91 !important;
-    }
-
-    /* Butonlar */
-    .stButton > button,
-    .stDownloadButton > button,
-    .stFormSubmitButton > button {
+    .stButton > button {
         width: 100% !important;
-        min-height: 42px !important;
-        border-radius: 6px !important;
-        border: 1px solid #bfc9d6 !important;
-        background: #ffffff !important;
-        color: #29435f !important;
+        border-radius: 8px !important;
+        min-height: 44px !important;
         font-weight: 600 !important;
         font-size: 13px !important;
-        box-shadow: 0 1px 2px rgba(24, 59, 99, 0.04) !important;
-        transition: background 0.12s ease, border-color 0.12s ease !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin: 0px !important;
     }
-
-    .stButton > button:hover,
-    .stDownloadButton > button:hover,
-    .stFormSubmitButton > button:hover {
-        background: #eef4f9 !important;
-        border-color: #8fa8c0 !important;
-        color: #163f69 !important;
-    }
-
-    /* Form ve inputlar */
-    div[data-baseweb="input"] > div,
-    div[data-baseweb="select"] > div,
-    textarea,
-    input {
-        border-radius: 6px !important;
-        border-color: #c9d2dd !important;
-    }
-
-    div[data-baseweb="input"] > div:focus-within,
-    div[data-baseweb="select"] > div:focus-within {
-        border-color: #6e94b7 !important;
-        box-shadow: 0 0 0 1px #6e94b7 !important;
-    }
-
-    /* Metrikler: sade kart görünümü */
-    div[data-testid="stMetric"] {
-        background: #ffffff !important;
-        border: 1px solid #d9e0e8 !important;
-        border-radius: 7px !important;
-        padding: 12px 14px !important;
-    }
-
-    div[data-testid="stMetricLabel"] {
-        color: #64748b !important;
-        font-size: 0.82rem !important;
-    }
-
     div[data-testid="stMetricValue"] {
-        font-size: 1.35rem !important;
-        color: #183b63 !important;
-        font-weight: 700 !important;
+        font-size: 1.3rem;
     }
-
-    /* Dataframe / tablolar */
-    div[data-testid="stDataFrame"] {
-        border: 1px solid #d9e0e8 !important;
-        border-radius: 6px !important;
-        overflow: hidden !important;
-        background: #ffffff !important;
-    }
-
-    /* Expanders */
-    details {
-        border: 1px solid #d8e0e8 !important;
-        border-radius: 6px !important;
-        background: #ffffff !important;
-    }
-
-    /* Ayraç */
-    hr {
-        margin: 0.8rem 0 !important;
-        border: none !important;
-        border-top: 1px solid #d9e0e8 !important;
-    }
-
-    /* Bilgi / uyarı kutuları */
-    div[data-testid="stAlert"] {
-        border-radius: 6px !important;
-        border-width: 1px !important;
-    }
-
     .custom-card {
-        border: 1px solid #d9e0e8;
-        border-radius: 7px;
+        border: 1px solid #e6e9ef;
+        border-radius: 8px;
         padding: 15px;
-        background-color: #ffffff;
+        background-color: #fafbfc;
         margin-bottom: 15px;
-    }
-
-    /* Form alanlarının başlıkları */
-    label {
-        color: #42566f !important;
-        font-weight: 600 !important;
-    }
-
-    /* Küçük ekranlarda sekmeler taşmasın */
-    @media (max-width: 900px) {
-        button[data-baseweb="tab"] {
-            font-size: 0.78rem !important;
-            padding-left: 0.55rem !important;
-            padding-right: 0.55rem !important;
-        }
     }
 </style>
 """, unsafe_allow_html=True)

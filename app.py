@@ -15,67 +15,30 @@ import io
 st.set_page_config(page_title="Akıllı Okul Ders Dağıtım & Yönetim Sistemi", layout="wide")
 
 # ==========================================
-# 0. ULTRA-MODERN KURUMSAL ARAYÜZ (CSS)
+# 0. SİMETRİK GÖRSEL STİL DOKUNUŞU (CSS)
 # ==========================================
 st.markdown("""
 <style>
-    /* Genel Font ve Yumuşak Arka Plan Geçişleri */
-    html, body, [class*="css"] {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-    
-    /* Modern Kart Tasarımı */
-    .element-container, .stMarkdown {
-        color: inherit;
-    }
-    
-    /* Butonları Jilet Gibi Yapalım */
     .stButton > button {
         width: 100% !important;
-        border-radius: 10px !important;
-        min-height: 46px !important;
+        border-radius: 8px !important;
+        min-height: 44px !important;
         font-weight: 600 !important;
         font-size: 13px !important;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        transition: all 0.2s ease-in-out;
-        border: 1px solid rgba(0,0,0,0.08);
-    }
-    .stButton > button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-
-    /* Metrik Kartları Modernizasyonu */
-    div[data-testid="metric-container"] {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(128, 128, 128, 0.2);
-        padding: 14px 18px;
-        border-radius: 12px;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin: 0px !important;
     }
     div[data-testid="stMetricValue"] {
-        font-size: 1.5rem !important;
-        font-weight: 700 !important;
+        font-size: 1.3rem;
     }
-
-    /* Sekme Başlıklarını Şıklaştır */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 8px 8px 0px 0px;
-        padding: 10px 16px;
-        font-weight: 600;
-    }
-
-    /* Özel Kart Container */
-    .modern-card {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(128, 128, 128, 0.15);
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    .custom-card {
+        border: 1px solid #e6e9ef;
+        border-radius: 8px;
+        padding: 15px;
+        background-color: #fafbfc;
+        margin-bottom: 15px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -778,7 +741,7 @@ with tab_kisi_ders:
         else:
             st.warning("Ders ataması yapmak için en az 1 öğretmen ve 1 şube eklemelisiniz.")
 
-    # SAĞ SÜTUN: 3 SEKMELİ DERS ATAMA VE ÖĞRETMEN YÜKÜ ÖZETİ
+    # SAĞ SÜTUN: 3 SEKMELİ DERS ATAMA VE ÖĞRETMEN YÜKÜ ÖZETİ (Doğru Konumda)
     with c_d_tablo:
         df_gecerli_dersler = st.session_state.ders_listesi[st.session_state.ders_listesi["Saat"] > 0]
         
@@ -1021,7 +984,7 @@ with tab_motor:
         if st.session_state.dondurulan_ogretmenler:
             st.info(f"📌 **Sabitlenmiş Öğretmenler:** {', '.join(st.session_state.dondurulan_ogretmenler)}")
 
-        # TEŞHİS UYARI KARTI VE SOFT / NOKTA ATIŞI ÇÖZÜM BUTONLARI
+        # TEŞHİS UYARI KARTI VE SOFT / NOKTA ATIŞI ÇÖZÜM BUTONLARI (Düzeltildi)
         if st.session_state.teshis_hatalari:
             st.error("⛔ **DERS PROGRAMI DAĞITILAMADI (Matematiksel Engel Tespit Edildi!)**")
             st.markdown("Kilitli saatlere asla ders yerleştirilmez. Aşağıdaki hızlı çözüm butonlarıyla kilitleri noktasal olarak açabilirsiniz:")
@@ -1454,4 +1417,4 @@ with tab_nobet:
             use_container_width=True
         )
     else:
-        st.info("Program henüz dağıtılmadı. 4. Sekmeden dağıtım yapıldığında çarşaf çizelge burada görünecektir.")
+        st.info("Program henüz dağıtılmadı. 4. Sekmeden dağıtım yapıldığında nöbetler burada görünecektir.")

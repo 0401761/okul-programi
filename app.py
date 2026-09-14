@@ -521,9 +521,6 @@ def stil_carsaf_excel_uret(veri_matrisi, gun_saat_listesi, baslik_tur="Öğretme
     wb.save(buf)
     return buf.getvalue()
 
-# ==========================================
-# 4. ÇAKIŞMA & ENGEL TEŞHİS MOTORU
-# ==========================================
 def cakismalari_denetle(df_ders, gun_saatleri, kilitler, tum_ogretmenler, siniflar):
     teshisler = []
     toplam_haftalik_kapasite = sum(gun_saatleri.values())
@@ -635,7 +632,7 @@ with tab_okul:
             st.metric(f"{i+1}. Ders", z)
 
 # ----------------------------------------------------
-# TAB 2: ÖĞRETMEN, SINIF & DERS YÖNETİMİ (SEKMELİ ÖZET BÖLÜMÜ)
+# TAB 2: ÖĞRETMEN, SINIF & DERS YÖNETİMİ (3 SEKMELİ ÖZET PANO)
 # ----------------------------------------------------
 with tab_kisi_ders:
     st.subheader("👥 Kadro, Sınıf ve Ders Tanımlama Masası")
@@ -744,7 +741,7 @@ with tab_kisi_ders:
         else:
             st.warning("Ders ataması yapmak için en az 1 öğretmen ve 1 şube eklemelisiniz.")
 
-    # SAĞ SÜTUN: 3 SEKMELİ DERS ATAMA VE ÖĞRETMEN YÜKÜ ÖZETİ
+    # SAĞ SÜTUN: 3 SEKMELİ DERS ATAMA VE ÖĞRETMEN YÜKÜ ÖZETİ (Doğru Konumda)
     with c_d_tablo:
         df_gecerli_dersler = st.session_state.ders_listesi[st.session_state.ders_listesi["Saat"] > 0]
         
@@ -782,12 +779,9 @@ with tab_kisi_ders:
                         durum_str = f"{top_s}s (Eksik ⚠️)"
                         
                     ogr_ozet.append({
-                        "Öğretmen": o,
-                        "Toplam Saat": top_s,
-                        "Branş / Ders": d_adlar,
-                        "Girdiği Şubeler": s_adlar,
-                        "Norm Durumu": durum_str,
-                        "Nöbet": nob_str
+                        "Öğretmen": o, "Toplam Saat": top_s,
+                        "Branş / Ders": d_adlar, "Girdiği Şubeler": s_adlar,
+                        "Norm Durumu": durum_str, "Nöbet": nob_str
                     })
                 df_ogr_ozet = pd.DataFrame(ogr_ozet).sort_values(by="Toplam Saat", ascending=False).reset_index(drop=True)
                 
@@ -803,8 +797,7 @@ with tab_kisi_ders:
                     df_ogr_ozet.to_excel(writer, index=False)
                 st.download_button(
                     label="📥 Öğretmen Ders Yüklerini Excel İndir (.xlsx)",
-                    data=buf_oy.getvalue(),
-                    file_name="ogretmen_ders_yukleri.xlsx",
+                    data=buf_oy.getvalue(), file_name="ogretmen_ders_yukleri.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True
                 )
@@ -814,10 +807,8 @@ with tab_kisi_ders:
                 for s, grp in df_gecerli_dersler.groupby("Sınıf"):
                     top_s = int(grp["Saat"].sum())
                     snf_ozet.append({
-                        "Şube": s,
-                        "Toplam Saat": top_s,
-                        "Ders Sayısı": len(grp),
-                        "Öğretmen Sayısı": grp["Öğretmen"].nunique(),
+                        "Şube": s, "Toplam Saat": top_s,
+                        "Ders Sayısı": len(grp), "Öğretmen Sayısı": grp["Öğretmen"].nunique(),
                         "Durum": "Tamamlandı (36s) ✅" if top_s == 36 else f"{top_s}/36s ⚠️"
                     })
                 df_snf_ozet = pd.DataFrame(snf_ozet).sort_values(by="Şube").reset_index(drop=True)
@@ -843,10 +834,8 @@ with tab_kisi_ders:
             sablon_df.to_excel(writer, index=False)
         st.download_button(
             label="📥 Örnek Excel Şablonunu İndir (.xlsx)",
-            data=buf_ex.getvalue(),
-            file_name="okul_ders_sablonu.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
+            data=buf_ex.getvalue(), file_name="okul_ders_sablonu.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True
         )
         up_file = st.file_uploader("Excel Dosyası (.xlsx)", type=["xlsx", "xls"], key="up_excel_key")
         if up_file is not None:
@@ -857,8 +846,6 @@ with tab_kisi_ders:
                     st.session_state.ders_listesi = gelen_df[["Öğretmen", "Sınıf", "Ders", "Saat", "Nöbetçi"]]
                     st.success(f"✅ Excel başarıyla aktarıldı! ({len(gelen_df)} satır)")
                     st.rerun()
-                else:
-                    st.error("Excel sütunları: Öğretmen, Sınıf, Ders, Saat olmalıdır.")
             except Exception as e:
                 st.error(f"Hata: {e}")
 
@@ -868,10 +855,8 @@ with tab_kisi_ders:
         img_test_bytes = cizelge_gorseli_uret()
         st.download_button(
             label="📥 Test İçin Örnek İHO Çizelgesi İndir (.png)",
-            data=img_test_bytes,
-            file_name="ornek_iho_cizelgesi.png",
-            mime="image/png",
-            use_container_width=True
+            data=img_test_bytes, file_name="ornek_iho_cizelgesi.png",
+            mime="image/png", use_container_width=True
         )
         api_anahtari = st.text_input("Google Gemini API Anahtarı (Opsiyonel):", type="password", placeholder="AIzaSy...")
         if yuklenen_belge is not None:
@@ -989,7 +974,7 @@ with tab_kilit:
                         st.rerun()
 
 # ----------------------------------------------------
-# TAB 4: SIFIR TAVİZLİ DAĞITIM & SOFT / HIZLI ÇÖZÜM PANELİ
+# TAB 4: SIFIR TAVİZLİ DAĞITIM & SOFT ÇÖZÜM PANELİ
 # ----------------------------------------------------
 with tab_motor:
     if not tum_ogretmenler or not siniflar:
@@ -999,7 +984,7 @@ with tab_motor:
         if st.session_state.dondurulan_ogretmenler:
             st.info(f"📌 **Sabitlenmiş Öğretmenler:** {', '.join(st.session_state.dondurulan_ogretmenler)}")
 
-        # TEŞHİS UYARI KARTI VE SOFT / NOKTA ATIŞI ÇÖZÜM BUTONLARI
+        # TEŞHİS UYARI KARTI VE SOFT / NOKTA ATIŞI ÇÖZÜM BUTONLARI (Düzeltildi)
         if st.session_state.teshis_hatalari:
             st.error("⛔ **DERS PROGRAMI DAĞITILAMADI (Matematiksel Engel Tespit Edildi!)**")
             st.markdown("Kilitli saatlere asla ders yerleştirilmez. Aşağıdaki hızlı çözüm butonlarıyla kilitleri noktasal olarak açabilirsiniz:")
@@ -1010,19 +995,17 @@ with tab_motor:
                     st.markdown(f"**🚨 {th['Tip']} ({th['Hedef']}):** {th['Detay']}")
                     st.caption(f"💡 Çözüm Önerisi: {th['Cozum']}")
                 
-                # 1. SOFT / AKILLI ÇÖZÜM BUTONU: Sadece gereken saati açar
                 with c_soft:
                     st.write("")
                     if th["Tip"] == "Kapasite Aşımı":
                         hedef_ogr = th["Hedef"]
                         eksik_s = th.get("EksikSaat", 1)
                         if st.button(f"🔓 Sadece {eksik_s} Saati Aç", key=f"soft_coz_{idx}", use_container_width=True):
-                            # Öğretmenin kilitlerinden sadece eksik_saat kadarını en sondan gevşet
                             ogr_kilitler = sorted([k for k in st.session_state.kilitler if k[0] == hedef_ogr], key=lambda x: (x[1], -x[2]), reverse=True)
                             for silinecek in ogr_kilitler[:eksik_s]:
                                 st.session_state.kilitler.discard(silinecek)
                             st.session_state.teshis_hatalari = []
-                            st.success(f"{hedef_ogr} için sadece gereken {eksik_s} saatlik kilit açıldı, diğer kilitleri korundu!")
+                            st.success(f"{hedef_ogr} için gereken {eksik_s} saatlik kilit açıldı!")
                             st.rerun()
                     elif th["Tip"] == "Saatlik Öğretmen Açığı":
                         g_ad = th["Gun"]
@@ -1035,7 +1018,6 @@ with tab_motor:
                             st.session_state.teshis_hatalari = []
                             st.rerun()
 
-                # 2. KOMPLE SIFIRLAMA BUTONU
                 with c_sifirla:
                     st.write("")
                     if th["Tip"] == "Kapasite Aşımı":
@@ -1055,7 +1037,6 @@ with tab_motor:
             c_tum_soft, c_tum_sifirla = st.columns(2)
             with c_tum_soft:
                 if st.button("✨ TÜM HATALARI AKILLICA DÜZELT & HEMEN DAĞIT", type="primary", use_container_width=True):
-                    # Her sorunlu hocanın sadece gereken kadar saatini aç
                     for th in st.session_state.teshis_hatalari:
                         if th["Tip"] == "Kapasite Aşımı":
                             hedef_ogr = th["Hedef"]
@@ -1270,7 +1251,7 @@ with tab_motor:
                 st.table(df_tab)
 
 # ----------------------------------------------------
-# TAB 5: RESMÎ PDF ÇIKTILARI (DİNAMİK TEMALI)
+# TAB 5: RESMÎ PDF ÇIKTILARI
 # ----------------------------------------------------
 with tab_pdf:
     if st.session_state.cozum_sinif is None:
@@ -1328,7 +1309,7 @@ with tab_pdf:
             components.html(html_toplu_s, height=680, scrolling=True)
 
 # ----------------------------------------------------
-# TAB 6: İDARECİ KONSOLİDE ÇARŞAFI (KISALTILMIŞ & AYRILMIŞ)
+# TAB 6: İDARECİ KONSOLİDE ÇARŞAFI
 # ----------------------------------------------------
 with tab_carsaf:
     st.subheader("📋 Tüm Okulun Genel Çarşaf Çizelgesi (İdareci Masası)")
@@ -1415,7 +1396,7 @@ with tab_carsaf:
         st.info("Program henüz dağıtılmadı. 4. Sekmeden dağıtım yapıldığında çarşaf çizelge burada görünecektir.")
 
 # ----------------------------------------------------
-# TAB 7: AKILLI NÖBET (4 SAAT BOŞLUK KORUMALI LİSTE)
+# TAB 7: AKILLI NÖBET
 # ----------------------------------------------------
 with tab_nobet:
     st.subheader("🛡️ Akıllı Nöbet Çizelgesi (Gelişmiş Koruma)")

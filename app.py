@@ -19,27 +19,368 @@ st.set_page_config(page_title="Akıllı Okul Ders Dağıtım & Yönetim Sistemi"
 # ==========================================
 st.markdown("""
 <style>
-    .stButton > button {
-        width: 100% !important;
-        border-radius: 8px !important;
-        min-height: 44px !important;
-        font-weight: 600 !important;
-        font-size: 13px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        margin: 0px !important;
-    }
-    div[data-testid="stMetricValue"] {
-        font-size: 1.3rem;
-    }
-    .custom-card {
-        border: 1px solid #e6e9ef;
-        border-radius: 8px;
-        padding: 15px;
-        background-color: #fafbfc;
-        margin-bottom: 15px;
-    }
+/* =========================================================
+   AKILLI OKUL — MODERN YÖNETİM PANELİ TASARIM SİSTEMİ
+   Mevcut işlevlere dokunmadan yalnızca görsel katmanı yeniler.
+   ========================================================= */
+
+:root {
+    --ao-bg: #0a0f1a;
+    --ao-panel: #111827;
+    --ao-panel-2: #151d2d;
+    --ao-panel-3: #0f1726;
+    --ao-border: rgba(148,163,184,.16);
+    --ao-border-strong: rgba(148,163,184,.24);
+    --ao-text: #f8fafc;
+    --ao-muted: #94a3b8;
+    --ao-blue: #4f8cff;
+    --ao-blue-2: #2563eb;
+    --ao-green: #22c55e;
+    --ao-orange: #f59e0b;
+    --ao-red: #ef4444;
+    --ao-purple: #8b5cf6;
+    --ao-shadow: 0 14px 36px rgba(0,0,0,.22);
+    --ao-radius: 16px;
+}
+
+/* Sayfa zemini */
+.stApp {
+    background:
+        radial-gradient(circle at 8% 0%, rgba(79,140,255,.10), transparent 24%),
+        radial-gradient(circle at 100% 10%, rgba(139,92,246,.08), transparent 22%),
+        var(--ao-bg) !important;
+    color: var(--ao-text) !important;
+}
+
+[data-testid="stAppViewContainer"] > .main {
+    background: transparent !important;
+}
+
+[data-testid="stMainBlockContainer"] {
+    max-width: 1550px !important;
+    padding-top: 1.5rem !important;
+    padding-bottom: 3rem !important;
+}
+
+[data-testid="stHeader"] {
+    background: rgba(10,15,26,.72) !important;
+    backdrop-filter: blur(14px) !important;
+}
+
+/* Genel yazı hiyerarşisi */
+html, body, [class*="css"] {
+    font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -.02em !important;
+}
+
+/* Uygulama başlığı */
+.ao-app-header {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
+    padding:22px 24px;
+    margin:0 0 18px 0;
+    border:1px solid var(--ao-border);
+    border-radius:20px;
+    background:linear-gradient(135deg, rgba(17,24,39,.95), rgba(21,29,45,.86));
+    box-shadow:var(--ao-shadow);
+    position:relative;
+    overflow:hidden;
+}
+
+.ao-app-header:after {
+    content:"";
+    position:absolute;
+    width:260px;
+    height:260px;
+    right:-90px;
+    top:-150px;
+    border-radius:50%;
+    background:rgba(79,140,255,.14);
+    filter:blur(8px);
+}
+
+.ao-brand {
+    display:flex;
+    align-items:center;
+    gap:14px;
+    position:relative;
+    z-index:1;
+}
+
+.ao-logo {
+    width:52px;
+    height:52px;
+    border-radius:15px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:27px;
+    background:linear-gradient(135deg, #2563eb, #7c3aed);
+    box-shadow:0 10px 24px rgba(37,99,235,.30);
+}
+
+.ao-brand-title {
+    font-size:24px;
+    font-weight:800;
+    color:#fff;
+    line-height:1.05;
+}
+
+.ao-brand-subtitle {
+    margin-top:5px;
+    font-size:12px;
+    color:var(--ao-muted);
+}
+
+.ao-status {
+    position:relative;
+    z-index:1;
+    display:flex;
+    align-items:center;
+    gap:9px;
+    padding:10px 14px;
+    border:1px solid rgba(34,197,94,.22);
+    border-radius:999px;
+    background:rgba(34,197,94,.08);
+    color:#bbf7d0;
+    font-size:12px;
+    font-weight:700;
+}
+
+.ao-status-dot {
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:#22c55e;
+    box-shadow:0 0 0 4px rgba(34,197,94,.12);
+}
+
+/* KPI kartları */
+.ao-kpi-grid {
+    display:grid;
+    grid-template-columns:repeat(4, minmax(0,1fr));
+    gap:14px;
+    margin:0 0 20px 0;
+}
+
+.ao-kpi {
+    padding:17px 18px;
+    border:1px solid var(--ao-border);
+    border-radius:16px;
+    background:linear-gradient(180deg, rgba(17,24,39,.95), rgba(15,23,38,.95));
+    box-shadow:0 8px 24px rgba(0,0,0,.14);
+}
+
+.ao-kpi-top {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+}
+
+.ao-kpi-label {
+    color:var(--ao-muted);
+    font-size:12px;
+    font-weight:650;
+}
+
+.ao-kpi-icon {
+    width:34px;
+    height:34px;
+    border-radius:11px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:rgba(79,140,255,.11);
+    font-size:17px;
+}
+
+.ao-kpi-value {
+    margin-top:10px;
+    font-size:25px;
+    font-weight:800;
+    letter-spacing:-.03em;
+    color:#fff;
+}
+
+/* Streamlit sekmeleri */
+.stTabs [data-baseweb="tab-list"] {
+    gap:6px !important;
+    padding:6px !important;
+    background:rgba(15,23,38,.82) !important;
+    border:1px solid var(--ao-border) !important;
+    border-radius:15px !important;
+    box-shadow:0 8px 22px rgba(0,0,0,.15);
+}
+
+.stTabs [data-baseweb="tab"] {
+    height:44px !important;
+    padding:0 15px !important;
+    border-radius:10px !important;
+    color:#94a3b8 !important;
+    font-size:12px !important;
+    font-weight:700 !important;
+    border:none !important;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    color:#e2e8f0 !important;
+    background:rgba(255,255,255,.04) !important;
+}
+
+.stTabs [aria-selected="true"] {
+    color:#fff !important;
+    background:linear-gradient(135deg, rgba(37,99,235,.94), rgba(79,70,229,.94)) !important;
+    box-shadow:0 6px 18px rgba(37,99,235,.24);
+}
+
+.stTabs [data-baseweb="tab-highlight"] {
+    display:none !important;
+}
+
+/* İç alt sekmeler */
+.stTabs .stTabs [data-baseweb="tab-list"] {
+    background:rgba(17,24,39,.68) !important;
+    box-shadow:none !important;
+    border-radius:12px !important;
+}
+
+/* Başlıklar */
+.stSubheader, [data-testid="stMarkdownContainer"] h3 {
+    color:#f8fafc !important;
+}
+
+/* Kart hissi veren kolon blokları */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border-color:var(--ao-border) !important;
+    border-radius:16px !important;
+    background:rgba(17,24,39,.56) !important;
+}
+
+/* Butonlar */
+.stButton > button, .stDownloadButton > button, .stFormSubmitButton > button {
+    width:100% !important;
+    min-height:44px !important;
+    border-radius:11px !important;
+    border:1px solid rgba(148,163,184,.18) !important;
+    background:linear-gradient(180deg, #182235, #121a29) !important;
+    color:#e5e7eb !important;
+    font-weight:700 !important;
+    font-size:13px !important;
+    transition:all .18s ease !important;
+    box-shadow:0 4px 14px rgba(0,0,0,.08);
+}
+
+.stButton > button:hover, .stDownloadButton > button:hover, .stFormSubmitButton > button:hover {
+    transform:translateY(-1px);
+    border-color:rgba(79,140,255,.38) !important;
+    background:linear-gradient(180deg, #1d2b44, #152033) !important;
+    box-shadow:0 8px 22px rgba(0,0,0,.18);
+}
+
+button[kind="primary"], .stButton > button[kind="primary"] {
+    background:linear-gradient(135deg, #2563eb, #4f46e5) !important;
+    border-color:transparent !important;
+    color:#fff !important;
+    box-shadow:0 8px 24px rgba(37,99,235,.24) !important;
+}
+
+/* Inputlar */
+.stTextInput input, .stNumberInput input, .stSelectbox [data-baseweb="select"],
+.stMultiSelect [data-baseweb="select"], .stTextArea textarea {
+    background:#111827 !important;
+    border:1px solid rgba(148,163,184,.18) !important;
+    border-radius:11px !important;
+    color:#f8fafc !important;
+    min-height:44px !important;
+}
+
+.stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {
+    border-color:rgba(79,140,255,.70) !important;
+    box-shadow:0 0 0 3px rgba(79,140,255,.10) !important;
+}
+
+[data-baseweb="select"] > div {
+    background:#111827 !important;
+    border-color:rgba(148,163,184,.18) !important;
+    border-radius:11px !important;
+}
+
+/* Form / expander */
+[data-testid="stExpander"] {
+    border:1px solid var(--ao-border) !important;
+    border-radius:14px !important;
+    background:rgba(17,24,39,.60) !important;
+}
+
+/* Dataframe */
+[data-testid="stDataFrame"] {
+    border:1px solid var(--ao-border) !important;
+    border-radius:13px !important;
+    overflow:hidden !important;
+}
+
+/* Metric */
+div[data-testid="stMetric"] {
+    background:linear-gradient(180deg, rgba(17,24,39,.95), rgba(15,23,38,.95));
+    border:1px solid var(--ao-border);
+    border-radius:14px;
+    padding:12px 14px;
+}
+
+div[data-testid="stMetricLabel"] {
+    color:#94a3b8 !important;
+}
+
+div[data-testid="stMetricValue"] {
+    font-size:1.55rem !important;
+    font-weight:800 !important;
+}
+
+/* Bilgi / başarı / uyarı / hata kutuları */
+[data-testid="stAlert"] {
+    border-radius:13px !important;
+    border:1px solid var(--ao-border) !important;
+    background:rgba(17,24,39,.72) !important;
+}
+
+/* Checkbox / radio */
+[data-testid="stCheckbox"] label, [data-testid="stRadio"] label {
+    color:#cbd5e1 !important;
+}
+
+/* Divider */
+hr {
+    border-color:rgba(148,163,184,.12) !important;
+}
+
+/* Sidebar hazır tasarım — ileride menüye dönüştürmek kolay olsun */
+[data-testid="stSidebar"] {
+    background:linear-gradient(180deg, #0d1421 0%, #0a0f1a 100%) !important;
+    border-right:1px solid var(--ao-border) !important;
+}
+
+[data-testid="stSidebar"] .stButton > button {
+    text-align:left !important;
+    justify-content:flex-start !important;
+}
+
+/* Mobil */
+@media (max-width: 950px) {
+    .ao-kpi-grid { grid-template-columns:repeat(2, minmax(0,1fr)); }
+    .ao-app-header { align-items:flex-start; flex-direction:column; }
+    .ao-status { align-self:flex-start; }
+}
+
+@media (max-width: 640px) {
+    .ao-kpi-grid { grid-template-columns:1fr; }
+    .ao-brand-title { font-size:20px; }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -567,7 +908,18 @@ def cakismalari_denetle(df_ders, gun_saatleri, kilitler, tum_ogretmenler, sinifl
 # ==========================================
 # 5. GÖRSEL PANEL VE ANA SEKMELER
 # ==========================================
-st.title(f"🏫 {st.session_state.okul_adi} - Akıllı Ders & Nöbet Yönetim Sistemi")
+st.markdown(f"""
+<div class="ao-app-header">
+  <div class="ao-brand">
+    <div class="ao-logo">🏫</div>
+    <div>
+      <div class="ao-brand-title">Akıllı Okul Yönetim Sistemi</div>
+      <div class="ao-brand-subtitle">{st.session_state.okul_adi} • {st.session_state.egitim_yili}</div>
+    </div>
+  </div>
+  <div class="ao-status"><span class="ao-status-dot"></span> Sistem aktif</div>
+</div>
+""", unsafe_allow_html=True)
 
 tab_okul, tab_kisi_ders, tab_kilit, tab_motor, tab_pdf, tab_carsaf, tab_nobet = st.tabs([
     "🏛️ 1. Okul & Zil Saatleri",
@@ -897,6 +1249,50 @@ with tab_kisi_ders:
 df_aktif = st.session_state.ders_listesi[st.session_state.ders_listesi["Saat"] > 0]
 tum_ogretmenler = sorted(list(df_aktif["Öğretmen"].unique())) if not df_aktif.empty else []
 siniflar = sorted(list(df_aktif["Sınıf"].unique())) if not df_aktif.empty else []
+
+# ----------------------------------------------------
+# MODERN ÜST ÖZET / KONTROL MERKEZİ
+# ----------------------------------------------------
+toplam_atama = len(df_aktif)
+toplam_saat = int(df_aktif["Saat"].sum()) if not df_aktif.empty else 0
+toplam_ogr = len(tum_ogretmenler)
+toplam_sube = len(siniflar)
+kilit_sayisi = len(st.session_state.kilitler)
+
+if st.session_state.teshis_hatalari:
+    sistem_durumu = "Kontrol gerekli"
+    sistem_renk = "#f59e0b"
+elif toplam_atama > 0:
+    sistem_durumu = "Hazır"
+    sistem_renk = "#22c55e"
+else:
+    sistem_durumu = "Veri bekleniyor"
+    sistem_renk = "#94a3b8"
+
+st.markdown(f"""
+<div class="ao-kpi-grid">
+  <div class="ao-kpi">
+    <div class="ao-kpi-top"><div class="ao-kpi-label">ÖĞRETMEN</div><div class="ao-kpi-icon">👨‍🏫</div></div>
+    <div class="ao-kpi-value">{toplam_ogr}</div>
+  </div>
+  <div class="ao-kpi">
+    <div class="ao-kpi-top"><div class="ao-kpi-label">ŞUBE</div><div class="ao-kpi-icon">🏫</div></div>
+    <div class="ao-kpi-value">{toplam_sube}</div>
+  </div>
+  <div class="ao-kpi">
+    <div class="ao-kpi-top"><div class="ao-kpi-label">DERS ATAMASI</div><div class="ao-kpi-icon">📚</div></div>
+    <div class="ao-kpi-value">{toplam_atama}</div>
+  </div>
+  <div class="ao-kpi">
+    <div class="ao-kpi-top"><div class="ao-kpi-label">HAFTALIK DERS SAATİ</div><div class="ao-kpi-icon">⏱️</div></div>
+    <div class="ao-kpi-value">{toplam_saat}</div>
+  </div>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 15px;margin-bottom:20px;border:1px solid rgba(148,163,184,.14);border-radius:13px;background:rgba(17,24,39,.56);">
+  <div style="font-size:12px;color:#94a3b8;">Program altyapısı • {toplam_atama} aktif atama • {kilit_sayisi} kilit</div>
+  <div style="font-size:12px;font-weight:800;color:{sistem_renk};">● {sistem_durumu}</div>
+</div>
+""", unsafe_allow_html=True)
 
 # ----------------------------------------------------
 # TAB 3: GÜNE ÖZEL KİLİT MATRİSİ

@@ -785,7 +785,7 @@ with tab_okul:
             st.metric(f"{i+1}. Ders", z)
 
 # ----------------------------------------------------
-# TAB 2: ÖĞRETMEN, SINIF & DERS YÖNETİMİ
+# TAB 2: ÖĞRETMEN, SINIF & DERS YÖNETİMİ (ÖĞRETMEN DERS YÜKÜ ÖZETİ DAHİL)
 # ----------------------------------------------------
 with tab_kisi_ders:
     st.subheader("👥 Kadro, Sınıf ve Ders Tanımlama Masası")
@@ -803,7 +803,6 @@ with tab_kisi_ders:
             st.rerun()
     with c_btn2:
         if st.button("🔄 Örnek 24 Şubeli İHO Verisini Yükle (Fabrika Ayarları)", use_container_width=True):
-            # Örnek veri yüklendiğinde eski test kilitlerini de sıfırlayarak temiz bir başlangıç sunuyoruz!
             st.session_state.ders_listesi = varsayilan_iho_verisi()
             st.session_state.kilitler = set()
             st.session_state.dondurulan_ogretmenler = set()
@@ -870,7 +869,7 @@ with tab_kisi_ders:
                 st.info("Kayıtlı şube yok.")
 
     st.write("---")
-    st.markdown("#### 📚 3. Ders Eşleştirmesi Ekle & Sil")
+    st.markdown("#### 📚 3. Ders Eşleştirmesi Ekle & Detaylı Yük Analizi")
     c_d_ekle, c_d_tablo = st.columns(2)
     
     with c_d_ekle:
@@ -906,18 +905,89 @@ with tab_kisi_ders:
         else:
             st.warning("Ders ataması yapmak için en az 1 öğretmen ve 1 şube eklemelisiniz.")
 
+    # SAĞ SÜTUN: 3 SEKMELİ DERS ATAMA VE ÖĞRETMEN YÜKÜ ÖZETİ
     with c_d_tablo:
         df_gecerli_dersler = st.session_state.ders_listesi[st.session_state.ders_listesi["Saat"] > 0]
+        
         if not df_gecerli_dersler.empty:
-            st.write(f"📋 **Kayıtlı Ders Dağılımı ({len(df_gecerli_dersler)} Atama / {df_gecerli_dersler['Saat'].sum()} Saat):**")
-            st.dataframe(df_gecerli_dersler[["Öğretmen", "Sınıf", "Ders", "Saat", "Nöbetçi"]], height=210, use_container_width=True)
+            sub_tab_atamalar, sub_tab_ogr_yuku, sub_tab_snf_yuku = st.tabs([
+                f"📋 Tüm Atamalar ({len(df_gecerli_dersler)})",
+                f"👨‍🏫 Öğretmen Yükleri ({df_gecerli_dersler['Öğretmen'].nunique()})",
+                f"🏫 Şube Yükleri ({df_gecerli_dersler['Sınıf'].nunique()})"
+            ])
             
-            atama_etiketleri = [f"{r['Öğretmen']} | {r['Sınıf']} - {r['Ders']} ({r['Saat']} Saat)" for _, r in df_gecerli_dersler.iterrows()]
-            secilen_sil_idx = st.selectbox("Listeden Çıkarılacak Ders Ataması:", range(len(atama_etiketleri)), format_func=lambda i: atama_etiketleri[i])
-            if st.button("🗑️ Seçili Ders Atamasını Sil", use_container_width=True):
-                hedef_row = df_gecerli_dersler.iloc[secilen_sil_idx]
-                st.session_state.ders_listesi = st.session_state.ders_listesi.drop(hedef_row.name).reset_index(drop=True)
-                st.rerun()
+            # 1. SEKME: TÜM ATAMALAR & SİLME KUTUSU
+            with sub_tab_atamalar:
+                st.dataframe(df_gecerli_dersler[["Öğretmen", "Sınıf", "Ders", "Saat", "Nöbetçi"]], height=210, use_container_width=True)
+                atama_etiketleri = [f"{r['Öğretmen']} | {r['Sınıf']} - {r['Ders']} ({r['Saat']} Saat)" for _, r in df_gecerli_dersler.iterrows()]
+                secilen_sil_idx = st.selectbox("Listeden Çıkarılacak Ders Ataması:", range(len(atama_etiketleri)), format_func=lambda i: atama_etiketleri[i])
+                if st.button("🗑️ Seçili Ders Atamasını Sil", use_container_width=True):
+                    hedef_row = df_gecerli_dersler.iloc[secilen_sil_idx]
+                    st.session_state.ders_listesi = st.session_state.ders_listesi.drop(hedef_row.name).reset_index(drop=True)
+                    st.rerun()
+
+            # 2. SEKME: ÖĞRETMEN DERS YÜKÜ ÖZETİ (YENİ İSTENEN BÖLÜM)
+            with sub_tab_ogr_yuku:
+                ogr_ozet = []
+                for o, grp in df_gecerli_dersler.groupby("Öğretmen"):
+                    top_s = int(grp["Saat"].sum())
+                    d_adlar = ", ".join(sorted(grp["Ders"].unique()))
+                    s_adlar = ", ".join(sorted(grp["Sınıf"].unique()))
+                    nob_str = "Evet ✅" if grp["Nöbetçi"].any() else "Hayır ❌"
+                    
+                    if top_s >= 30:
+                        durum_str = f"{top_s}s (Maks. Yük)"
+                    elif top_s >= 21:
+                        durum_str = f"{top_s}s (Maaş+Ek)"
+                    elif top_s >= 15:
+                        durum_str = f"{top_s}s (Maaş Karşılığı)"
+                    else:
+                        durum_str = f"{top_s}s (Eksik Yük ⚠️)"
+                        
+                    ogr_ozet.append({
+                        "Öğretmen": o,
+                        "Toplam Saat": top_s,
+                        "Branş / Ders": d_adlar,
+                        "Girdiği Şubeler": s_adlar,
+                        "Norm Durumu": durum_str,
+                        "Nöbet": nob_str
+                    })
+                df_ogr_ozet = pd.DataFrame(ogr_ozet).sort_values(by="Toplam Saat", ascending=False).reset_index(drop=True)
+                
+                # Özet Metrikler
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Ortalama Yük", f"{df_ogr_ozet['Toplam Saat'].mean():.1f} Saat")
+                m2.metric("En Yüksek", f"{df_ogr_ozet['Toplam Saat'].max()} Saat")
+                m3.metric("En Düşük", f"{df_ogr_ozet['Toplam Saat'].min()} Saat")
+                
+                st.dataframe(df_ogr_ozet, height=210, use_container_width=True)
+                
+                # Excel İndirme
+                buf_oy = io.BytesIO()
+                with pd.ExcelWriter(buf_oy, engine='openpyxl') as writer:
+                    df_ogr_ozet.to_excel(writer, index=False)
+                st.download_button(
+                    label="📥 Öğretmen Ders Yüklerini Excel İndir (.xlsx)",
+                    data=buf_oy.getvalue(),
+                    file_name="ogretmen_ders_yukleri_ozeti.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+
+            # 3. SEKME: ŞUBE DERS YÜKÜ ÖZETİ
+            with sub_tab_snf_yuku:
+                snf_ozet = []
+                for s, grp in df_gecerli_dersler.groupby("Sınıf"):
+                    top_s = int(grp["Saat"].sum())
+                    snf_ozet.append({
+                        "Şube": s,
+                        "Toplam Saat": top_s,
+                        "Ders Sayısı": len(grp),
+                        "Öğretmen Sayısı": grp["Öğretmen"].nunique(),
+                        "Durum": "Tamamlandı (36s) ✅" if top_s == 36 else f"{top_s}/36s ⚠️"
+                    })
+                df_snf_ozet = pd.DataFrame(snf_ozet).sort_values(by="Şube").reset_index(drop=True)
+                st.dataframe(df_snf_ozet, height=240, use_container_width=True)
         else:
             st.info("Henüz atanmış aktif bir ders saati bulunmuyor.")
 
@@ -1060,7 +1130,6 @@ with tab_kilit:
                 st.session_state.kilitler = {k for k in st.session_state.kilitler if k[0] != secili_ogr}
                 st.rerun()
 
-        # TÜM OKUL KİLİTLERİNİ SIFIRLAMA BUTONU
         if st.session_state.kilitler:
             st.write("")
             if st.button(f"🧹 TÜM OKULUN KİLİTLERİNİ TEMİZLE (Toplam {len(st.session_state.kilitler)} Kilit)", use_container_width=True):
@@ -1097,7 +1166,6 @@ with tab_motor:
         if st.session_state.dondurulan_ogretmenler:
             st.info(f"📌 **Sabitlenmiş Öğretmenler:** {', '.join(st.session_state.dondurulan_ogretmenler)}")
 
-        # TEŞHİS UYARI KARTI (EĞER BİR ENGEL VARSA)
         if st.session_state.teshis_hatalari:
             st.error("⛔ **DERS PROGRAMI DAĞITILAMADI (Matematiksel Engel Tespit Edildi!)**")
             st.markdown("Kilitli saatlere asla ders yerleştirilmez. Dağıtımın yapılabilmesi için aşağıdaki kilitleri gevşetin veya tek tıkla kaldırın:")

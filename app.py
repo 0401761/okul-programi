@@ -13,86 +13,103 @@ import json
 import os
 import io
 
-st.set_page_config(page_title="Akıllı Okul Yönetim & Ders Dağıtım Paneli", layout="wide")
+st.set_page_config(page_title="Akıllı Okul Yönetim Paneli", layout="wide")
 
 # ==========================================
-# 0. ULTRA-KOMPAKT KURUMSAL YÖNETİM PANELİ (CSS)
+# 0. ÇERÇEVELİ & SINIRLI PANEL ARAYÜZÜ (CSS)
 # ==========================================
 st.markdown("""
 <style>
-    /* 1. Sayfa Kenar ve Üst Boşluklarını Sıkılaştırma */
+    /* Sayfa Genel Yapısı */
     .block-container {
-        padding-top: 1rem !important;
+        padding-top: 0.8rem !important;
         padding-bottom: 1rem !important;
-        padding-left: 1.5rem !important;
-        padding-right: 1.5rem !important;
-        max-width: 98% !important;
+        padding-left: 1.2rem !important;
+        padding-right: 1.2rem !important;
+        max-width: 99% !important;
     }
     html, body, [class*="css"] {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        font-size: 13px !important;
+        font-size: 12.5px !important;
     }
 
-    /* Başlık Boyutlarını Küçültme */
-    h1 { font-size: 1.3rem !important; margin: 0 0 4px 0 !important; }
-    h2 { font-size: 1.15rem !important; margin: 0 0 6px 0 !important; }
-    h3 { font-size: 1.05rem !important; margin: 0 0 6px 0 !important; }
-    h4 { font-size: 0.95rem !important; margin: 0 0 4px 0 !important; }
+    /* Başlıklar */
+    h1 { font-size: 1.25rem !important; margin: 0 0 2px 0 !important; }
+    h2 { font-size: 1.1rem !important; margin: 0 0 4px 0 !important; }
+    h3 { font-size: 1.0rem !important; margin: 0 0 4px 0 !important; }
+    h4 { font-size: 0.9rem !important; margin: 0 0 3px 0 !important; }
 
-    /* 2. Kompakt Kart Yapısı */
-    .dashboard-card {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(128, 128, 128, 0.15);
-        padding: 12px 14px !important;
+    /* BELİRGİN SINIRLI BÖLME KUTULARI (GroupBox) */
+    .panel-box {
+        border: 1.5px solid rgba(128, 128, 128, 0.35) !important;
         border-radius: 8px !important;
-        margin-bottom: 10px !important;
+        padding: 12px 14px !important;
+        margin-bottom: 12px !important;
+        background: rgba(128, 128, 128, 0.02) !important;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+    }
+    .panel-header {
+        font-size: 11.5px !important;
+        font-weight: 700 !important;
+        color: #0066cc;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1.5px solid rgba(0, 102, 204, 0.25);
+        padding-bottom: 4px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
 
-    /* 3. Kompakt Butonlar (Yükseklik 48px -> 33px) */
+    /* Buton Tasarımları */
     .stButton > button {
         width: 100% !important;
         border-radius: 6px !important;
-        min-height: 32px !important;
-        height: 33px !important;
+        min-height: 31px !important;
+        height: 31px !important;
         padding: 2px 8px !important;
         font-weight: 600 !important;
         font-size: 11.5px !important;
-        border: 1px solid rgba(128, 128, 128, 0.25);
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        border: 1px solid rgba(128, 128, 128, 0.35);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
         transition: all 0.15s ease;
     }
     .stButton > button:hover {
         transform: translateY(-1px);
-        box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+        border-color: #0066cc !important;
+        box-shadow: 0 2px 6px rgba(0, 102, 204, 0.15);
     }
 
-    /* 4. Kompakt Metrikler */
+    /* Metrik Kutuları */
     div[data-testid="metric-container"] {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(128, 128, 128, 0.18);
-        padding: 6px 10px !important;
-        border-radius: 8px !important;
+        border: 1px solid rgba(128, 128, 128, 0.25) !important;
+        padding: 4px 8px !important;
+        border-radius: 6px !important;
+        background: rgba(128, 128, 128, 0.03);
     }
     div[data-testid="stMetricValue"] {
-        font-size: 1.15rem !important;
+        font-size: 1.05rem !important;
         font-weight: 700 !important;
     }
     div[data-testid="stMetricLabel"] {
         font-size: 0.75rem !important;
     }
 
-    /* 5. Kompakt Sekmeler */
+    /* Sekme Başlıkları */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 6px !important;
+        gap: 4px !important;
         padding-bottom: 4px !important;
+        border-bottom: 2px solid rgba(128, 128, 128, 0.2);
     }
     .stTabs [data-baseweb="tab"] {
-        border-radius: 6px !important;
+        border-radius: 6px 6px 0px 0px !important;
         padding: 6px 12px !important;
-        font-size: 12px !important;
+        font-size: 11.5px !important;
         font-weight: 600;
-        border: 1px solid rgba(128, 128, 128, 0.15);
-        background: rgba(128, 128, 128, 0.02);
+        border: 1px solid rgba(128, 128, 128, 0.25);
+        border-bottom: none;
+        background: rgba(128, 128, 128, 0.04);
     }
     .stTabs [aria-selected="true"] {
         background: #0066cc !important;
@@ -100,20 +117,16 @@ st.markdown("""
         border-color: #0066cc !important;
     }
 
-    /* 6. Form ve Giriş Alanları */
+    /* Form ve Girdi Kutuları */
     div[data-baseweb="input"] input, div[data-baseweb="select"] {
         font-size: 12px !important;
-        min-height: 32px !important;
-        height: 32px !important;
+        min-height: 31px !important;
+        height: 31px !important;
     }
     .stNumberInput input {
         font-size: 12px !important;
-        min-height: 32px !important;
-        height: 32px !important;
-    }
-    hr {
-        margin-top: 0.5rem !important;
-        margin-bottom: 0.5rem !important;
+        min-height: 31px !important;
+        height: 31px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -292,42 +305,6 @@ def kisalt_ogretmen(tam_ad):
         return f"{parcalar[0][0]}. {parcalar[-1]}"
     return tam_ad
 
-def cizelge_gorseli_uret():
-    w, h = 1200, 780
-    img = Image.new("RGB", (w, h), color=(255, 255, 255))
-    d = ImageDraw.Draw(img)
-    d.rectangle([(20, 20), (w-20, 85)], fill=(235, 243, 250), outline=(0, 51, 102), width=2)
-    d.text((40, 28), "T.C. MILLI EGITIM BAKANLIGI - IMAM HATIP ORTAOKULU", fill=(0, 51, 102))
-    d.text((40, 52), "HAFTALIK DERS DAGITIM CIZELGESI (24 SUBE: 5A-8F | TOPLAM: 864 SAAT)", fill=(60, 60, 60))
-    headers = ["Sube", "TRK", "MAT", "FEN", "SOS", "ING", "DKAB", "KURAN", "PEYG", "ARAP", "DIGER", "TOPLAM"]
-    col_w = (w - 60) // len(headers)
-    y = 100
-    d.rectangle([(30, y), (w-30, y+28)], fill=(200, 220, 240), outline=(0, 0, 0))
-    for i, h_text in enumerate(headers):
-        d.text((35 + i * col_w, y + 7), h_text, fill=(0, 0, 0))
-    classes = [f"{g}{s}" for g in [5, 6, 7, 8] for s in ["A", "B", "C", "D", "E", "F"]]
-    y += 28
-    for idx, c in enumerate(classes[:16]):
-        bg = (248, 249, 250) if idx % 2 == 0 else (255, 255, 255)
-        d.rectangle([(30, y), (w-30, y+22)], fill=bg, outline=(220, 220, 220))
-        d.text((35, y + 4), c, fill=(0, 0, 0))
-        d.text((35 + col_w, y + 4), "6" if c.startswith(('5','6')) else "5", fill=(0, 0, 0))
-        d.text((35 + 2*col_w, y + 4), "5", fill=(0, 0, 0))
-        d.text((35 + 3*col_w, y + 4), "4", fill=(0, 0, 0))
-        d.text((35 + 4*col_w, y + 4), "3" if not c.startswith('8') else "2", fill=(0, 0, 0))
-        d.text((35 + 5*col_w, y + 4), "3" if c.startswith(('5','6')) else "4", fill=(0, 0, 0))
-        d.text((35 + 6*col_w, y + 4), "2", fill=(0, 0, 0))
-        d.text((35 + 7*col_w, y + 4), "2", fill=(0, 0, 0))
-        d.text((35 + 8*col_w, y + 4), "2", fill=(0, 0, 0))
-        d.text((35 + 9*col_w, y + 4), "2", fill=(0, 0, 0))
-        d.text((35 + 10*col_w, y + 4), "7-8", fill=(0, 0, 0))
-        d.text((35 + 11*col_w, y + 4), "36 Saat", fill=(180, 0, 0))
-        y += 22
-    d.text((40, y + 15), "... [Tüm Şubeler ve Öğretmen Kadrosu] ...", fill=(100, 100, 100))
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return buf.getvalue()
-
 def zil_saatlerini_uret(toplam_saat=8):
     saatler = []
     try:
@@ -425,40 +402,9 @@ def render_meb_print_view(icerik_listesi, toplu_mu=False):
                 --nobet-color: #f87171;
             }}
         }}
-        body.dark-theme {{
-            --bg-page: #0e1117 !important;
-            --card-bg: #161a23 !important;
-            --text-main: #f9fafb !important;
-            --text-muted: #9ca3af !important;
-            --border-color: #374151 !important;
-            --th-bg: #1f2937 !important;
-            --th-text: #f9fafb !important;
-            --time-bg: #1a1e29 !important;
-            --kilit-bg: #262c38 !important;
-            --kilit-text: #d1d5db !important;
-            --empty-text: #4b5563 !important;
-            --header-red: #ff6b6b !important;
-            --nobet-color: #f87171 !important;
-        }}
-        body.light-theme {{
-            --bg-page: #ffffff !important;
-            --card-bg: #ffffff !important;
-            --text-main: #111827 !important;
-            --text-muted: #4b5563 !important;
-            --border-color: #d1d5db !important;
-            --th-bg: #f3f4f6 !important;
-            --th-text: #111827 !important;
-            --time-bg: #f9fafb !important;
-            --kilit-bg: #f3f4f6 !important;
-            --kilit-text: #6b7280 !important;
-            --empty-text: #9ca3af !important;
-            --header-red: #b30000 !important;
-            --nobet-color: #d9534f !important;
-        }}
         body {{ font-family: Arial, sans-serif; margin: 0; padding: 10px; background-color: var(--bg-page); color: var(--text-main); font-size: 11px; }}
         .top-toolbar {{ display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }}
         .btn-action {{ background-color: #0066cc; color: white; border: none; padding: 6px 14px; font-size: 12px; font-weight: bold; border-radius: 5px; cursor: pointer; }}
-        .btn-theme {{ background-color: var(--th-bg); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 5px; cursor: pointer; }}
         .header-box {{ text-align: center; border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px; }}
         .header-box h2 {{ margin: 2px; font-size: 14px; }}
         .header-box h3 {{ margin: 2px; font-size: 12px; font-weight: normal; color: var(--text-muted); }}
@@ -478,58 +424,16 @@ def render_meb_print_view(icerik_listesi, toplu_mu=False):
         @media print {{
             .no-print {{ display: none !important; }}
             body {{ background-color: #ffffff !important; color: #000000 !important; margin: 0 !important; padding: 0 !important; }}
-            .header-box h2, .header-box h3, .sub-info, .footer-box {{ color: #000000 !important; }}
-            .header-box {{ border-bottom: 2px solid #000000 !important; }}
-            .header-box h4 {{ color: #b30000 !important; }}
-            .nobet-tag {{ color: #b30000 !important; }}
-            .table-meb {{ border: 1px solid #000000 !important; background-color: #ffffff !important; }}
             .table-meb th {{ background-color: #f2f2f2 !important; color: #000000 !important; border: 1px solid #000000 !important; }}
             .table-meb td {{ border: 1px solid #000000 !important; color: #000000 !important; background-color: #ffffff !important; }}
-            .table-meb td.time-cell {{ background-color: #f9f9f9 !important; color: #333333 !important; }}
-            .table-meb td.kilit-cell {{ background-color: #f0f0f0 !important; color: #555555 !important; }}
             .page-break {{ page-break-after: always; break-after: page; display: block; }}
         }}
     </style>
-    <script>
-        function applyAutoTheme() {{
-            try {{
-                const pBody = window.parent.document.body;
-                const pBg = window.getComputedStyle(pBody).backgroundColor;
-                if (pBody.classList.contains('dark') || isDark(pBg)) {{
-                    document.body.className = 'dark-theme';
-                    return;
-                }}
-            }} catch(e) {{}}
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {{
-                document.body.className = 'dark-theme';
-            }} else {{
-                document.body.className = 'light-theme';
-            }}
-        }}
-        function isDark(rgbStr) {{
-            if (!rgbStr || rgbStr.indexOf('rgb') === -1) return false;
-            const nums = rgbStr.match(/\\d+/g);
-            if (nums && nums.length >= 3) {{
-                const b = (parseInt(nums[0])*299 + parseInt(nums[1])*587 + parseInt(nums[2])*114) / 1000;
-                return b < 128;
-            }}
-            return false;
-        }}
-        function toggleTheme() {{
-            if (document.body.classList.contains('dark-theme')) {{
-                document.body.className = 'light-theme';
-            }} else {{
-                document.body.className = 'dark-theme';
-            }}
-        }}
-        window.addEventListener('DOMContentLoaded', applyAutoTheme);
-    </script>
     </head>
     <body>
         <div class="no-print top-toolbar">
             <button class="btn-action" onclick="window.print()">🖨️ Yazdır / PDF Al</button>
-            <button class="btn-theme" onclick="toggleTheme()">🌗 Tema Değiştir</button>
-            <span style="font-size: 11px; color: var(--text-muted);">(Yazdırırken otomatik A4 beyaz kâğıt formatına dönüşür)</span>
+            <span style="font-size: 11px; color: var(--text-muted);">(Otomatik A4 kâğıt formatı)</span>
         </div>
         {pages_html}
     </body>
@@ -549,10 +453,8 @@ def stil_carsaf_excel_uret(veri_matrisi, gun_saat_listesi, baslik_tur="Öğretme
     
     thin_side = Side(style='thin', color='D9D9D9')
     thick_side = Side(style='medium', color='1F4E79')
-    
     thin_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
     thick_right_border = Border(left=thin_side, right=thick_side, top=thin_side, bottom=thin_side)
-    
     day_colors = ["1F4E79", "2F5597", "1F4E79", "2F5597", "1F4E79"]
     
     ws.merge_cells("A1:AL1")
@@ -590,9 +492,6 @@ def stil_carsaf_excel_uret(veri_matrisi, gun_saat_listesi, baslik_tur="Öğretme
             
         cur_col = end_col + 1
         
-    ws.row_dimensions[2].height = 18
-    ws.row_dimensions[3].height = 18
-    
     for r_idx, (r_name, r_vals) in enumerate(veri_matrisi.items(), start=4):
         ws.row_dimensions[r_idx].height = 18
         c1 = ws.cell(row=r_idx, column=1, value=r_name)
@@ -665,12 +564,12 @@ def cakismalari_denetle(df_ders, gun_saatleri, kilitler, tum_ogretmenler, sinifl
 # 5. KOMPAKT ÜST BAŞLIK VE SEKME PANELİ
 # ==========================================
 st.markdown(f"""
-<div style="background: linear-gradient(135deg, #004c99 0%, #0066cc 100%); padding: 10px 18px; border-radius: 8px; color: white; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+<div style="border: 1.5px solid #004c99; background: linear-gradient(135deg, #004c99 0%, #0066cc 100%); padding: 8px 16px; border-radius: 8px; color: white; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
     <div>
-        <h1 style="margin: 0; font-size: 18px; font-weight: 700;">🏛️ {st.session_state.okul_adi}</h1>
-        <p style="margin: 2px 0 0 0; font-size: 11.5px; opacity: 0.9;">Akıllı Ders Dağıtım & Nöbet Paneli</p>
+        <h1 style="margin: 0; font-size: 17px; font-weight: 700;">🏛️ {st.session_state.okul_adi}</h1>
+        <p style="margin: 1px 0 0 0; font-size: 11px; opacity: 0.9;">Akıllı Ders Dağıtım & Okul Yönetim Paneli</p>
     </div>
-    <span style="background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;">{st.session_state.egitim_yili}</span>
+    <span style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); padding: 3px 8px; border-radius: 5px; font-size: 11px; font-weight: 600;">{st.session_state.egitim_yili}</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -688,8 +587,7 @@ tab_okul, tab_kisi_ders, tab_kilit, tab_motor, tab_pdf, tab_carsaf, tab_nobet = 
 # TAB 1: OKUL KÜNYESİ VE ZİL SAATLERİ
 # ----------------------------------------------------
 with tab_okul:
-    st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
-    st.markdown("#### 🏛️ Kurum Bilgileri")
+    st.markdown('<div class="panel-box"><div class="panel-header">🏛️ Kurum Resmî Bilgileri</div>', unsafe_allow_html=True)
     c_ok1, c_ok2, c_ok3 = st.columns(3)
     with c_ok1:
         yeni_okul = st.text_input("Okul Adı", value=st.session_state.okul_adi)
@@ -706,11 +604,12 @@ with tab_okul:
         if yeni_mudur != st.session_state.mudur_adi:
             st.session_state.mudur_adi = yeni_mudur
             verileri_kaydet()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("#### ⏰ Ders ve Öğle Arası Ayarları")
+    st.markdown('<div class="panel-box"><div class="panel-header">⏰ Ders & Öğle Arası Parametreleri</div>', unsafe_allow_html=True)
     c_z1, c_z2, c_z3, c_z4 = st.columns(4)
     with c_z1:
-        yeni_bas = st.text_input("1. Ders Başlama", value=st.session_state.ders_baslangic)
+        yeni_bas = st.text_input("1. Ders Başlama Saati", value=st.session_state.ders_baslangic)
         if yeni_bas != st.session_state.ders_baslangic:
             st.session_state.ders_baslangic = yeni_bas
             verileri_kaydet()
@@ -725,12 +624,13 @@ with tab_okul:
             st.session_state.ogle_arasi_ders = yeni_ogle_ders
             verileri_kaydet()
     with c_z4:
-        yeni_ogle_dk = st.number_input("Öğle Arası (Dk)", min_value=20, max_value=90, value=int(st.session_state.ogle_arasi_dk))
+        yeni_ogle_dk = st.number_input("Öğle Arası Süresi (Dk)", min_value=20, max_value=90, value=int(st.session_state.ogle_arasi_dk))
         if yeni_ogle_dk != st.session_state.ogle_arasi_dk:
             st.session_state.ogle_arasi_dk = yeni_ogle_dk
             verileri_kaydet()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("#### ☕ Teneffüs Süreleri (Dk)")
+    st.markdown('<div class="panel-box"><div class="panel-header">☕ Teneffüs Süreleri Yönetimi (Dakika)</div>', unsafe_allow_html=True)
     cols_ten = st.columns(7)
     for t_idx in range(1, 8):
         with cols_ten[t_idx - 1]:
@@ -748,8 +648,9 @@ with tab_okul:
                 if yeni_ten != eski_ten:
                     st.session_state.teneffus_sureleri[t_idx] = yeni_ten
                     verileri_kaydet()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    st.write("📋 **Oluşturulan Resmî Ders Saatleri:**")
+    st.markdown('<div class="panel-box"><div class="panel-header">📋 Oluşturulan Günlük Zil Çizelgesi</div>', unsafe_allow_html=True)
     zil_listesi = zil_saatlerini_uret(8)
     cols_zil_gor = st.columns(8)
     for i, z in enumerate(zil_listesi):
@@ -761,10 +662,10 @@ with tab_okul:
 # TAB 2: ÖĞRETMEN, SINIF & DERS YÖNETİMİ
 # ----------------------------------------------------
 with tab_kisi_ders:
-    st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
+    st.markdown('<div class="panel-box"><div class="panel-header">⚡ Hızlı İşlemler & Hazır Veri</div>', unsafe_allow_html=True)
     c_btn1, c_btn2 = st.columns(2)
     with c_btn1:
-        if st.button("🗑️ TÜM LİSTEYİ SIFIRLA", use_container_width=True):
+        if st.button("🗑️ TÜM LİSTEYİ SIFIRLA (Temizle)", use_container_width=True):
             st.session_state.ders_listesi = pd.DataFrame(columns=["Öğretmen", "Sınıf", "Ders", "Saat", "Nöbetçi"])
             st.session_state.kilitler = set()
             st.session_state.dondurulan_ogretmenler = set()
@@ -786,17 +687,18 @@ with tab_kisi_ders:
             verileri_kaydet()
             st.success("✅ Yüklendi!")
             st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
     col_sol, col_sag = st.columns(2)
     with col_sol:
-        st.markdown("#### 👨‍🏫 Öğretmen Ekle & Sil")
+        st.markdown('<div class="panel-box"><div class="panel-header">👨‍🏫 1. Öğretmen Yönetimi</div>', unsafe_allow_html=True)
         mevcut_ogretmenler = sorted(list(st.session_state.ders_listesi["Öğretmen"].dropna().unique())) if not st.session_state.ders_listesi.empty else []
         c_o_ekle, c_o_sil = st.columns(2)
         with c_o_ekle:
             with st.form("ogr_ekle_form", clear_on_submit=True):
                 yeni_hoca = st.text_input("Öğretmen Ad Soyad", placeholder="Örn: Hasan Yılmaz")
                 yeni_nobet = st.checkbox("Nöbetçi Olabilir", value=True)
-                if st.form_submit_button("➕ Ekle", use_container_width=True):
+                if st.form_submit_button("➕ Öğretmen Ekle", use_container_width=True):
                     if yeni_hoca.strip():
                         satir = pd.DataFrame([{"Öğretmen": yeni_hoca.strip(), "Sınıf": "-", "Ders": "Kayıt", "Saat": 0, "Nöbetçi": yeni_nobet}])
                         st.session_state.ders_listesi = pd.concat([st.session_state.ders_listesi, satir], ignore_index=True)
@@ -806,21 +708,22 @@ with tab_kisi_ders:
         with c_o_sil:
             if mevcut_ogretmenler:
                 silinecek_hoca = st.selectbox("Silinecek Öğretmen:", mevcut_ogretmenler, key="sil_hoca_sec")
-                if st.button("🗑️ Seçileni Sil", use_container_width=True):
+                if st.button("🗑️ Seçili Öğretmeni Sil", use_container_width=True):
                     st.session_state.ders_listesi = st.session_state.ders_listesi[st.session_state.ders_listesi["Öğretmen"] != silinecek_hoca]
                     st.session_state.kilitler = {k for k in st.session_state.kilitler if k[0] != silinecek_hoca}
                     st.session_state.dondurulan_ogretmenler.discard(silinecek_hoca)
                     verileri_kaydet()
                     st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with col_sag:
-        st.markdown("#### 🏫 Şube Ekle & Sil")
+        st.markdown('<div class="panel-box"><div class="panel-header">🏫 2. Şube / Sınıf Yönetimi</div>', unsafe_allow_html=True)
         mevcut_siniflar = sorted([s for s in st.session_state.ders_listesi["Sınıf"].dropna().unique() if s != "-"]) if not st.session_state.ders_listesi.empty else []
         c_s_ekle, c_s_sil = st.columns(2)
         with c_s_ekle:
             with st.form("snf_ekle_form", clear_on_submit=True):
                 yeni_snf = st.text_input("Şube Adı", placeholder="Örn: 5G")
-                if st.form_submit_button("➕ Ekle", use_container_width=True):
+                if st.form_submit_button("➕ Şube Ekle", use_container_width=True):
                     if yeni_snf.strip():
                         snf_kod = yeni_snf.strip().upper()
                         satir = pd.DataFrame([{"Öğretmen": "-", "Sınıf": snf_kod, "Ders": "Kayıt", "Saat": 0, "Nöbetçi": False}])
@@ -831,12 +734,13 @@ with tab_kisi_ders:
         with c_s_sil:
             if mevcut_siniflar:
                 silinecek_snf = st.selectbox("Silinecek Şube:", mevcut_siniflar, key="sil_snf_sec")
-                if st.button("🗑️ Şubeyi Sil", use_container_width=True):
+                if st.button("🗑️ Seçili Şubeyi Sil", use_container_width=True):
                     st.session_state.ders_listesi = st.session_state.ders_listesi[st.session_state.ders_listesi["Sınıf"] != silinecek_snf]
                     verileri_kaydet()
                     st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("#### 📚 Ders Atamaları & Yük Özeti")
+    st.markdown('<div class="panel-box"><div class="panel-header">📚 3. Ders Eşleştirme & Detaylı Yük Dağılımı</div>', unsafe_allow_html=True)
     c_d_ekle, c_d_tablo = st.columns([1.2, 1.8])
     
     with c_d_ekle:
@@ -848,7 +752,7 @@ with tab_kisi_ders:
                 sec_snf = st.selectbox("Şube", guncel_snflar)
                 drs_ad = st.text_input("Ders Adı", placeholder="Örn: Matematik")
                 drs_saat = st.number_input("Haftalık Saat", min_value=1, max_value=36, value=4)
-                drs_nobet = st.checkbox("Nöbet Tutabilir", value=True)
+                drs_nobet = st.checkbox("Nöbetçi Olabilir", value=True)
                 if st.form_submit_button("➕ Dersi Ata", use_container_width=True):
                     if drs_ad.strip():
                         st.session_state.ders_listesi = st.session_state.ders_listesi[
@@ -912,15 +816,16 @@ with tab_kilit:
     if not tum_ogretmenler:
         st.warning("⚠️ Lütfen önce kadro ve ders atamalarını girin.")
     else:
-        st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
-        st.markdown("#### 🔒 Öğretmen Kısıt & Kilit Matrisi")
+        st.markdown('<div class="panel-box"><div class="panel-header">🎯 1. Öğretmen ve Hedef Gün Seçimi</div>', unsafe_allow_html=True)
         c_sec_ogr, c_sec_gun = st.columns(2)
         with c_sec_ogr:
-            secili_ogr = st.selectbox("Öğretmen Seç:", tum_ogretmenler)
+            secili_ogr = st.selectbox("İşlem Yapılacak Öğretmen:", tum_ogretmenler)
         with c_sec_gun:
             hedef_gun = st.selectbox("Hedef Gün:", GUNLER, key="hedef_gun_sec")
-        
+        st.markdown('</div>', unsafe_allow_html=True)
+
         ogle_sinir = int(st.session_state.ogle_arasi_ders)
+        st.markdown('<div class="panel-box"><div class="panel-header">⚡ 2. Hızlı Kilit Şablonları</div>', unsafe_allow_html=True)
         r1_col1, r1_col2, r2_col1, r2_col2 = st.columns(4)
         with r1_col1:
             if st.button(f"☀️ Öğleden Önce Kapat (1-{ogle_sinir})", use_container_width=True):
@@ -945,8 +850,10 @@ with tab_kilit:
                 st.session_state.kilitler = {k for k in st.session_state.kilitler if k[0] != secili_ogr}
                 verileri_kaydet()
                 st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        st.caption(f"🔴 = Kilitli/Boş | 🟢 = Açık/Müsait ({secili_ogr}):")
+        st.markdown(f'<div class="panel-box"><div class="panel-header">📅 3. Saat Bazlı Kilit Matrisi ({secili_ogr})</div>', unsafe_allow_html=True)
+        st.caption("🔴 = Kilitli (Ders Konmaz) | 🟢 = Açık (Ders Verilebilir)")
         grid_cols = st.columns(5)
         for i, gun in enumerate(GUNLER):
             with grid_cols[i]:
@@ -971,8 +878,7 @@ with tab_motor:
     if not tum_ogretmenler or not siniflar:
         st.warning("⚠️ Dağıtım için öğretmen ve sınıf gereklidir.")
     else:
-        st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
-        st.markdown("#### 🚀 Akıllı Dağıtım & Kontrol")
+        st.markdown('<div class="panel-box"><div class="panel-header">🚀 Matematiksel Optimizasyon & Dağıtım</div>', unsafe_allow_html=True)
         
         if st.session_state.teshis_hatalari:
             st.error("⛔ **DERS PROGRAMI Çakışma / Kapasite Engeline Takıldı!**")
@@ -1081,8 +987,10 @@ with tab_motor:
                         st.rerun()
                     else:
                         st.error("❌ Çözüm bulunamadı.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
         if st.session_state.cozum_ogretmen is not None:
+            st.markdown('<div class="panel-box"><div class="panel-header">🔍 Dağıtım Sonucu İnceleme Masası</div>', unsafe_allow_html=True)
             c_mod, c_sec = st.columns([1, 2])
             with c_mod:
                 goruntu_modu = st.radio("Mod:", ["👨‍🏫 Öğretmen", "🏫 Şube"], horizontal=True)
@@ -1094,7 +1002,7 @@ with tab_motor:
                 with c_sec:
                     secilen_sinif = st.selectbox("Şube:", siniflar, key="inc_snf")
                 st.table(pd.DataFrame(st.session_state.cozum_sinif[secilen_sinif], index=zil_etiketleri))
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
 # TAB 5: RESMÎ PDF ÇIKTILARI
@@ -1103,9 +1011,11 @@ with tab_pdf:
     if st.session_state.cozum_sinif is None:
         st.warning("⚠️ Lütfen önce 4. Sekmeden programı dağıtın.")
     else:
-        st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
+        st.markdown('<div class="panel-box"><div class="panel-header">📄 Resmî Yazdırma & PDF Seçenekleri</div>', unsafe_allow_html=True)
         pdf_secenek = st.radio("Yazdırma Modu:", ["👤 Tek Öğretmen", "🏫 Tek Şube", "📚 Tüm Öğretmenler (Toplu)", "🏫 Tüm Şubeler (Toplu)"], horizontal=True)
-        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="panel-box"><div class="panel-header">🖨️ Belge Önizleme Alanı</div>', unsafe_allow_html=True)
         if pdf_secenek == "👤 Tek Öğretmen":
             sec_o = st.selectbox("Öğretmen:", tum_ogretmenler, key="pdf_tek_o")
             df_g = pd.DataFrame(st.session_state.cozum_ogretmen[sec_o], index=zil_etiketleri)
@@ -1143,8 +1053,8 @@ with tab_pdf:
 # TAB 6: İDARECİ KONSOLİDE ÇARŞAFI
 # ----------------------------------------------------
 with tab_carsaf:
-    st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
     if st.session_state.cozum_ogretmen is not None:
+        st.markdown('<div class="panel-box"><div class="panel-header">📋 Çarşaf Türü & Dışa Aktarma</div>', unsafe_allow_html=True)
         carsaf_gorunum = st.radio("Çarşaf Türü:", ["👨‍🏫 Öğretmen Bazlı", "🏫 Şube Bazlı"], horizontal=True)
         
         col_tuples = []
@@ -1169,8 +1079,12 @@ with tab_carsaf:
                 data_dict[ogr] = row_vals
                 excel_matrisi[ogr] = excel_row
 
-            st.dataframe(pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols), use_container_width=True, height=400)
-            st.download_button("📥 Excel İndir (.xlsx)", data=stil_carsaf_excel_uret(excel_matrisi, gun_saat_listesi, "Öğretmen", st.session_state.okul_adi), file_name="ogretmen_carsaf.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+            st.download_button("📥 Öğretmen Çarşafını Excel Olarak İndir (.xlsx)", data=stil_carsaf_excel_uret(excel_matrisi, gun_saat_listesi, "Öğretmen", st.session_state.okul_adi), file_name="ogretmen_carsaf.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            st.markdown('<div class="panel-box"><div class="panel-header">📊 Öğretmen Konsolide Çarşaf Matrisi</div>', unsafe_allow_html=True)
+            st.dataframe(pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols), use_container_width=True, height=420)
+            st.markdown('</div>', unsafe_allow_html=True)
         else:
             data_dict, excel_matrisi = {}, {}
             for snf in siniflar:
@@ -1184,24 +1098,27 @@ with tab_carsaf:
                 data_dict[snf] = row_vals
                 excel_matrisi[snf] = excel_row
 
-            st.dataframe(pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols), use_container_width=True, height=400)
-            st.download_button("📥 Excel İndir (.xlsx)", data=stil_carsaf_excel_uret(excel_matrisi, gun_saat_listesi, "Sınıf", st.session_state.okul_adi), file_name="sube_carsaf.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+            st.download_button("📥 Şube Çarşafını Excel Olarak İndir (.xlsx)", data=stil_carsaf_excel_uret(excel_matrisi, gun_saat_listesi, "Sınıf", st.session_state.okul_adi), file_name="sube_carsaf.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            st.markdown('<div class="panel-box"><div class="panel-header">📊 Şube Konsolide Çarşaf Matrisi</div>', unsafe_allow_html=True)
+            st.dataframe(pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols), use_container_width=True, height=420)
+            st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.info("Program henüz dağıtılmadı.")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
 # TAB 7: AKILLI NÖBET
 # ----------------------------------------------------
 with tab_nobet:
-    st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
-    st.markdown("#### 🛡️ Akıllı Nöbet Çizelgesi")
+    st.markdown('<div class="panel-box"><div class="panel-header">🛡️ Resmî Nöbet Çizelgesi & İndirme</div>', unsafe_allow_html=True)
     if st.session_state.nobet_listesi is not None:
-        st.dataframe(st.session_state.nobet_listesi, use_container_width=True, height=350)
         buf_n = io.BytesIO()
         with pd.ExcelWriter(buf_n, engine='openpyxl') as writer:
             st.session_state.nobet_listesi.to_excel(writer, index=False)
-        st.download_button("📥 Nöbet Excel İndir (.xlsx)", data=buf_n.getvalue(), file_name="nobet_cizelgesi.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+        st.download_button("📥 Nöbet Çizelgesini Excel Olarak İndir (.xlsx)", data=buf_n.getvalue(), file_name="nobet_cizelgesi.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+        st.write("")
+        st.dataframe(st.session_state.nobet_listesi, use_container_width=True, height=350)
     else:
         st.info("Dağıtım yapıldığında nöbet çizelgesi burada görünecektir.")
     st.markdown('</div>', unsafe_allow_html=True)

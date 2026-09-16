@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 import pandas as pd
 from ortools.sat.python import cp_model
 from datetime import datetime, timedelta
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
@@ -23,7 +23,6 @@ st.markdown("""
     html, body, [class*="css"] {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
-    /* Bağımsız Bölüm Balonları (Container Border) */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         border: 1.5px solid rgba(128, 128, 128, 0.25) !important;
         border-radius: 12px !important;
@@ -32,7 +31,6 @@ st.markdown("""
         margin-bottom: 18px !important;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03) !important;
     }
-    /* Tam Genişlik Uzun Başlık Şeritleri (Banner) */
     .panel-header {
         font-size: 13.5px !important;
         font-weight: 700 !important;
@@ -162,6 +160,7 @@ def verileri_kaydet():
         "ders_dk": st.session_state.ders_dk,
         "ogle_arasi_ders": st.session_state.ogle_arasi_ders,
         "ogle_arasi_dk": st.session_state.ogle_arasi_dk,
+        "gunluk_maks_ders": st.session_state.gunluk_maks_ders,
         "teneffus_sureleri": {str(k): v for k, v in st.session_state.teneffus_sureleri.items()},
         "gun_saatleri": st.session_state.gun_saatleri,
         "kilitler": list(st.session_state.kilitler),
@@ -187,6 +186,7 @@ def verileri_yukle():
                 st.session_state.ders_dk = veri.get("ders_dk", 40)
                 st.session_state.ogle_arasi_ders = veri.get("ogle_arasi_ders", 5)
                 st.session_state.ogle_arasi_dk = veri.get("ogle_arasi_dk", 45)
+                st.session_state.gunluk_maks_ders = veri.get("gunluk_maks_ders", 6)
                 st.session_state.teneffus_sureleri = {int(k): v for k, v in veri.get("teneffus_sureleri", {1:20, 2:10, 3:10, 4:10, 5:10, 6:10, 7:10}).items()}
                 st.session_state.gun_saatleri = veri.get("gun_saatleri", {"Pazartesi":7, "Salı":7, "Çarşamba":8, "Perşembe":7, "Cuma":7})
                 st.session_state.kilitler = set(tuple(k) for k in veri.get("kilitler", []))
@@ -220,6 +220,8 @@ if "ogle_arasi_ders" not in st.session_state:
     st.session_state.ogle_arasi_ders = 5
 if "ogle_arasi_dk" not in st.session_state:
     st.session_state.ogle_arasi_dk = 45
+if "gunluk_maks_ders" not in st.session_state:
+    st.session_state.gunluk_maks_ders = 6
 if "gun_saatleri" not in st.session_state:
     st.session_state.gun_saatleri = {"Pazartesi": 7, "Salı": 7, "Çarşamba": 8, "Perşembe": 7, "Cuma": 7}
 if "kilitler" not in st.session_state:
@@ -268,6 +270,32 @@ def kisalt_ogretmen(tam_ad):
         return f"{parcalar[0][0]}. {parcalar[-1]}"
     return tam_ad
 
+def saat_parcala_bloklara(toplam_saat):
+    """MEB Standart blok kalıpları: 5saat -> [2, 2, 1], 4saat -> [2, 2], 6saat -> [2, 2, 2], 3saat -> [2, 1]"""
+    if toplam_saat == 6:
+        return [2, 2, 2]
+    elif toplam_saat == 5:
+        return [2, 2, 1]
+    elif toplam_saat == 4:
+        return [2, 2]
+    elif toplam_saat == 3:
+        return [2, 1]
+    elif toplam_saat == 2:
+        return [2]
+    elif toplam_saat == 1:
+        return [1]
+    else:
+        bloklar = []
+        kalan = toplam_saat
+        while kalan > 0:
+            if kalan >= 2:
+                bloklar.append(2)
+                kalan -= 2
+            else:
+                bloklar.append(1)
+                kalan -= 1
+        return bloklar
+
 def cizelge_gorseli_uret():
     w, h = 1200, 780
     img = Image.new("RGB", (w, h), color=(255, 255, 255))
@@ -300,6 +328,62 @@ def cizelge_gorseli_uret():
         d.text((35 + 11*col_w, y + 4), "36 Saat", fill=(180, 0, 0))
         y += 22
     d.text((40, y + 15), "... [5A-5F, 6A-6F, 7A-7F, 8A-8F Tüm Şubeler ve Öğretmen Kadrosu Resmî Çizelgesi] ...", fill=(100, 100, 100))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+def whatsapp_program_karti_uret(ogretmen_adi, program_sozlugu, zil_saatleri, nobet_gunu=""):
+    """WhatsApp için dikey mobil uyumlu (1080x1920) yüksek çözünürlüklü program kartı PNG üretir."""
+    w, h = 1080, 1920
+    img = Image.new("RGB", (w, h), color=(245, 247, 250))
+    d = ImageDraw.Draw(img)
+    
+    d.rectangle([(0, 0), (w, 240)], fill=(0, 76, 153))
+    d.text((50, 45), st.session_state.okul_adi.upper(), fill=(255, 255, 255))
+    d.text((50, 95), "HAFTALIK ÖĞRETMEN DERS PROGRAMI", fill=(200, 225, 255))
+    d.text((50, 145), f"Sayın: {ogretmen_adi}", fill=(255, 255, 255))
+    if nobet_gunu:
+        d.text((50, 190), f"🛡️ Nöbet Günü: {nobet_gunu}", fill=(255, 215, 0))
+
+    gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"]
+    col_w = (w - 180) // 5
+    y_start = 280
+    
+    d.rectangle([(40, y_start), (w-40, y_start + 60)], fill=(220, 230, 242))
+    d.text((50, y_start + 18), "Ders", fill=(0, 51, 102))
+    for i, g in enumerate(gunler):
+        d.text((180 + i * col_w + 15, y_start + 18), g[:3], fill=(0, 51, 102))
+        
+    y_cur = y_start + 60
+    for s in range(8):
+        bg = (255, 255, 255) if s % 2 == 0 else (240, 244, 248)
+        row_h = 160
+        d.rectangle([(40, y_cur), (w-40, y_cur + row_h)], fill=bg, outline=(210, 215, 220))
+        
+        saat_aralik = zil_saatleri[s] if s < len(zil_saatleri) else ""
+        d.text((50, y_cur + 40), f"{s+1}.Ders", fill=(0, 0, 0))
+        d.text((50, y_cur + 85), saat_aralik, fill=(100, 100, 100))
+        
+        for g_idx, g in enumerate(gunler):
+            cell_x = 180 + g_idx * col_w
+            val = program_sozlugu.get(g, ["-"] * 8)[s]
+            if val not in ["-", "---", "🔒 KİLİTLİ"]:
+                d.rectangle([(cell_x + 5, y_cur + 15), (cell_x + col_w - 5, y_cur + row_h - 15)], fill=(225, 240, 255), outline=(0, 102, 204), width=2)
+                parcalar = val.split(" (")
+                snf_txt = parcalar[0]
+                drs_txt = parcalar[1].replace(")", "") if len(parcalar) > 1 else ""
+                d.text((cell_x + 15, y_cur + 35), snf_txt, fill=(0, 51, 102))
+                d.text((cell_x + 15, y_cur + 80), kisalt_ders(drs_txt), fill=(180, 50, 0))
+            elif val == "🔒 KİLİTLİ":
+                d.text((cell_x + 15, y_cur + 60), "🔒 BOŞ", fill=(160, 160, 160))
+            else:
+                d.text((cell_x + 35, y_cur + 60), "-", fill=(180, 180, 180))
+
+        y_cur += row_h
+
+    d.text((50, y_cur + 40), f"Onaylayan: {st.session_state.mudur_adi} (Okul Müdürü)", fill=(60, 60, 60))
+    d.text((50, y_cur + 75), f"{st.session_state.egitim_yili} Resmî Çizelgesidir.", fill=(120, 120, 120))
+    
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
@@ -386,144 +470,35 @@ def render_meb_print_view(icerik_listesi, toplu_mu=False):
     <head>
     <meta charset="utf-8">
     <style>
-        :root {{
-            --bg-page: #ffffff;
-            --card-bg: #ffffff;
-            --text-main: #111827;
-            --text-muted: #4b5563;
-            --border-color: #d1d5db;
-            --th-bg: #f3f4f6;
-            --th-text: #111827;
-            --time-bg: #f9fafb;
-            --kilit-bg: #f3f4f6;
-            --kilit-text: #6b7280;
-            --empty-text: #9ca3af;
-            --header-red: #b30000;
-            --nobet-color: #d9534f;
-        }}
-        @media (prefers-color-scheme: dark) {{
-            :root {{
-                --bg-page: #0e1117;
-                --card-bg: #161a23;
-                --text-main: #f9fafb;
-                --text-muted: #9ca3af;
-                --border-color: #374151;
-                --th-bg: #1f2937;
-                --th-text: #f9fafb;
-                --time-bg: #1a1e29;
-                --kilit-bg: #262c38;
-                --kilit-text: #d1d5db;
-                --empty-text: #4b5563;
-                --header-red: #ff6b6b;
-                --nobet-color: #f87171;
-            }}
-        }}
-        body.dark-theme {{
-            --bg-page: #0e1117 !important;
-            --card-bg: #161a23 !important;
-            --text-main: #f9fafb !important;
-            --text-muted: #9ca3af !important;
-            --border-color: #374151 !important;
-            --th-bg: #1f2937 !important;
-            --th-text: #f9fafb !important;
-            --time-bg: #1a1e29 !important;
-            --kilit-bg: #262c38 !important;
-            --kilit-text: #d1d5db !important;
-            --empty-text: #4b5563 !important;
-            --header-red: #ff6b6b !important;
-            --nobet-color: #f87171 !important;
-        }}
-        body.light-theme {{
-            --bg-page: #ffffff !important;
-            --card-bg: #ffffff !important;
-            --text-main: #111827 !important;
-            --text-muted: #4b5563 !important;
-            --border-color: #d1d5db !important;
-            --th-bg: #f3f4f6 !important;
-            --th-text: #111827 !important;
-            --time-bg: #f9fafb !important;
-            --kilit-bg: #f3f4f6 !important;
-            --kilit-text: #6b7280 !important;
-            --empty-text: #9ca3af !important;
-            --header-red: #b30000 !important;
-            --nobet-color: #d9534f !important;
-        }}
-        body {{ font-family: Arial, sans-serif; margin: 0; padding: 12px; background-color: var(--bg-page); color: var(--text-main); transition: background-color 0.2s ease, color 0.2s ease; }}
-        .top-toolbar {{ display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }}
-        .btn-action {{ background-color: #0066cc; color: white; border: none; padding: 10px 18px; font-size: 13px; font-weight: bold; border-radius: 6px; cursor: pointer; }}
-        .btn-action:hover {{ background-color: #004c99; }}
-        .btn-theme {{ background-color: var(--th-bg); color: var(--text-main); border: 1px solid var(--border-color); padding: 9px 15px; font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; }}
-        .header-box {{ text-align: center; border-bottom: 2px solid var(--border-color); padding-bottom: 8px; margin-bottom: 14px; }}
-        .header-box h2 {{ margin: 2px; font-size: 16px; color: var(--text-main); }}
-        .header-box h3 {{ margin: 2px; font-size: 13px; font-weight: normal; color: var(--text-muted); }}
-        .sub-year {{ font-size: 11px; color: var(--text-muted); margin: 2px; }}
-        .header-box h4 {{ margin: 4px 0; font-size: 15px; color: var(--header-red); font-weight: bold; }}
-        .sub-info {{ color: var(--text-main); font-size: 13px; }}
-        .nobet-tag {{ color: var(--nobet-color); font-weight: bold; }}
-        .table-meb {{ width: 100%; border-collapse: collapse; text-align: center; font-size: 11px; border: 1px solid var(--border-color); background-color: var(--card-bg); }}
-        .table-meb th {{ background-color: var(--th-bg); color: var(--th-text); padding: 8px 6px; font-weight: bold; border: 1px solid var(--border-color); }}
-        .table-meb td {{ padding: 6px; height: 30px; border: 1px solid var(--border-color); color: var(--text-main); }}
-        .table-meb td.time-cell {{ background-color: var(--time-bg); font-size: 10px; font-weight: bold; color: var(--text-muted); }}
-        .table-meb td.kilit-cell {{ background-color: var(--kilit-bg); color: var(--kilit-text); font-weight: 500; }}
-        .table-meb td.empty-cell {{ color: var(--empty-text); }}
-        .table-meb td.content-cell {{ font-weight: 600; color: var(--text-main); }}
-        .footer-box {{ margin-top: 25px; display: flex; justify-content: space-between; font-size: 12px; color: var(--text-main); padding: 0 10px; }}
-        .printable-page {{ padding-bottom: 25px; }}
+        body {{ font-family: Arial, sans-serif; margin: 0; padding: 12px; font-size: 11px; }}
+        .top-toolbar {{ display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }}
+        .btn-action {{ background-color: #0066cc; color: white; border: none; padding: 8px 16px; font-size: 12px; font-weight: bold; border-radius: 6px; cursor: pointer; }}
+        .header-box {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 6px; margin-bottom: 12px; }}
+        .header-box h2 {{ margin: 2px; font-size: 15px; }}
+        .header-box h3 {{ margin: 2px; font-size: 13px; font-weight: normal; }}
+        .sub-year {{ font-size: 11px; margin: 2px; }}
+        .header-box h4 {{ margin: 4px 0; font-size: 14px; color: #b30000; font-weight: bold; }}
+        .sub-info {{ font-size: 12px; }}
+        .nobet-tag {{ color: #b30000; font-weight: bold; }}
+        .table-meb {{ width: 100%; border-collapse: collapse; text-align: center; font-size: 11px; border: 1px solid #ccc; }}
+        .table-meb th {{ background-color: #f2f2f2; padding: 6px 4px; font-weight: bold; border: 1px solid #ccc; }}
+        .table-meb td {{ padding: 5px; height: 26px; border: 1px solid #ccc; }}
+        .table-meb td.time-cell {{ background-color: #f9f9f9; font-size: 10px; font-weight: bold; }}
+        .table-meb td.kilit-cell {{ background-color: #eee; color: #666; }}
+        .table-meb td.content-cell {{ font-weight: 600; }}
+        .footer-box {{ margin-top: 20px; display: flex; justify-content: space-between; font-size: 11.5px; padding: 0 10px; }}
+        .printable-page {{ padding-bottom: 20px; }}
         @media print {{
             .no-print {{ display: none !important; }}
-            body {{ background-color: #ffffff !important; color: #000000 !important; margin: 0 !important; padding: 0 !important; }}
-            .header-box h2, .header-box h3, .sub-info, .footer-box {{ color: #000000 !important; }}
-            .header-box {{ border-bottom: 2px solid #000000 !important; }}
-            .header-box h4 {{ color: #b30000 !important; }}
-            .nobet-tag {{ color: #b30000 !important; }}
-            .table-meb {{ border: 1px solid #000000 !important; background-color: #ffffff !important; }}
-            .table-meb th {{ background-color: #f2f2f2 !important; color: #000000 !important; border: 1px solid #000000 !important; }}
-            .table-meb td {{ border: 1px solid #000000 !important; color: #000000 !important; background-color: #ffffff !important; }}
-            .table-meb td.time-cell {{ background-color: #f9f9f9 !important; color: #333333 !important; }}
-            .table-meb td.kilit-cell {{ background-color: #f0f0f0 !important; color: #555555 !important; }}
+            body {{ background-color: #fff !important; color: #000 !important; margin: 0 !important; }}
             .page-break {{ page-break-after: always; break-after: page; display: block; }}
         }}
     </style>
-    <script>
-        function applyAutoTheme() {{
-            try {{
-                const pBody = window.parent.document.body;
-                const pBg = window.getComputedStyle(pBody).backgroundColor;
-                if (pBody.classList.contains('dark') || isDark(pBg)) {{
-                    document.body.className = 'dark-theme';
-                    return;
-                }}
-            }} catch(e) {{}}
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {{
-                document.body.className = 'dark-theme';
-            }} else {{
-                document.body.className = 'light-theme';
-            }}
-        }}
-        function isDark(rgbStr) {{
-            if (!rgbStr || rgbStr.indexOf('rgb') === -1) return false;
-            const nums = rgbStr.match(/\\d+/g);
-            if (nums && nums.length >= 3) {{
-                const b = (parseInt(nums[0])*299 + parseInt(nums[1])*587 + parseInt(nums[2])*114) / 1000;
-                return b < 128;
-            }}
-            return false;
-        }}
-        function toggleTheme() {{
-            if (document.body.classList.contains('dark-theme')) {{
-                document.body.className = 'light-theme';
-            }} else {{
-                document.body.className = 'dark-theme';
-            }}
-        }}
-        window.addEventListener('DOMContentLoaded', applyAutoTheme);
-    </script>
     </head>
     <body>
         <div class="no-print top-toolbar">
-            <button class="btn-action" onclick="window.print()">🖨️ Sayfayı Yazdır / PDF Olarak Kaydet</button>
-            <button class="btn-theme" onclick="toggleTheme()">🌗 Tema Değiştir (Koyu / Açık)</button>
-            <span style="font-size: 12px; color: var(--text-muted);">(Yazdırırken veya PDF alırken otomatik olarak A4 beyaz kâğıt formatına dönüşür)</span>
+            <button class="btn-action" onclick="window.print()">🖨️ Sayfayı Yazdır / PDF Al</button>
+            <span style="font-size: 12px; color: #555;">(Yazdırırken veya PDF alırken otomatik olarak A4 beyaz kâğıt formatına dönüşür)</span>
         </div>
         {pages_html}
     </body>
@@ -662,7 +637,7 @@ st.markdown(f"""
 <div style="background: linear-gradient(135deg, #004c99 0%, #0066cc 100%); padding: 16px 24px; border-radius: 12px; color: white; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 14px rgba(0,102,204,0.15);">
     <div>
         <h2 style="margin: 0; font-size: 20px; font-weight: 800; color: white;">🏛️ {st.session_state.okul_adi}</h2>
-        <p style="margin: 3px 0 0 0; font-size: 13px; opacity: 0.9;">Akıllı Ders Dağıtım, Kilit & Nöbet Yönetim Sistemi</p>
+        <p style="margin: 3px 0 0 0; font-size: 13px; opacity: 0.9;">Akıllı Ders Dağıtım, Blok Motoru & Nöbet Yönetim Sistemi</p>
     </div>
     <span style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); padding: 5px 14px; border-radius: 6px; font-size: 12.5px; font-weight: 700;">{st.session_state.egitim_yili}</span>
 </div>
@@ -673,7 +648,7 @@ tab_okul, tab_kisi_ders, tab_kilit, tab_motor, tab_pdf, tab_carsaf, tab_nobet = 
     "👥 2. Kadro & Dersler",
     "🔒 3. Güne Özel Kilit Matrisi",
     "🚀 4. Dağıt & Sabitle",
-    "📄 5. Resmî PDF Çıktıları",
+    "📄 5. Resmî PDF & Mobil Kart",
     "📋 6. İdareci Çarşafı",
     "🛡️ 7. Akıllı Nöbet"
 ])
@@ -702,8 +677,8 @@ with tab_okul:
                 verileri_kaydet()
 
     with st.container(border=True):
-        st.markdown('<div class="panel-header">⏰ Ders & Öğle Arası Parametreleri</div>', unsafe_allow_html=True)
-        c_z1, c_z2, c_z3, c_z4 = st.columns(4)
+        st.markdown('<div class="panel-header">⏰ Ders & Öğle Arası & Yük Denge Parametreleri</div>', unsafe_allow_html=True)
+        c_z1, c_z2, c_z3, c_z4, c_z5 = st.columns(5)
         with c_z1:
             yeni_bas = st.text_input("1. Ders Başlama Saati", value=st.session_state.ders_baslangic, placeholder="08:30")
             if yeni_bas != st.session_state.ders_baslangic:
@@ -723,6 +698,11 @@ with tab_okul:
             yeni_ogle_dk = st.number_input("Öğle Arası Süresi (Dk)", min_value=20, max_value=90, value=int(st.session_state.ogle_arasi_dk))
             if yeni_ogle_dk != st.session_state.ogle_arasi_dk:
                 st.session_state.ogle_arasi_dk = yeni_ogle_dk
+                verileri_kaydet()
+        with c_z5:
+            yeni_gun_max = st.number_input("Günlük Maks. Ders (Öğretmen)", min_value=4, max_value=8, value=int(st.session_state.gunluk_maks_ders))
+            if yeni_gun_max != st.session_state.gunluk_maks_ders:
+                st.session_state.gunluk_maks_ders = yeni_gun_max
                 verileri_kaydet()
 
     with st.container(border=True):
@@ -759,7 +739,6 @@ with tab_okul:
             with cols_sabah[i]:
                 st.metric(f"{i+1}. Ders", zil_listesi[i])
         
-        # 45 Dk Öğle Arası Vurgu Bloku
         st.markdown(f"""
         <div style="background: rgba(0, 102, 204, 0.08); border: 1.5px dashed #0066cc; border-radius: 8px; padding: 9px 18px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center;">
             <span style="font-weight: 700; color: #004c99; font-size: 13.5px;">🍽️ {ogle_ders_no}. DERSTEN SONRA ÖĞLE ARASI ({st.session_state.ogle_arasi_dk} DAKİKA)</span>
@@ -927,7 +906,6 @@ with tab_kisi_ders:
                     df_snf_ozet = pd.DataFrame(snf_ozet).sort_values(by="Şube").reset_index(drop=True)
                     st.dataframe(df_snf_ozet, height=180, use_container_width=True)
 
-    # 4. EXCEL İLE TOPLU YÜKLEME (UZUN BANNER & AYRI BALON)
     with st.container(border=True):
         st.markdown('<div class="panel-header">📊 4. EXCEL İLE TOPLU DERS YÜKLEME</div>', unsafe_allow_html=True)
         c_ex_indir, c_ex_yukle = st.columns([1, 2])
@@ -965,7 +943,6 @@ with tab_kisi_ders:
                 except Exception as e:
                     st.error(f"Hata: {e}")
 
-    # 5. FOTOĞRAFTAN OCR İLE YÜKLEME (UZUN BANNER & AYRI BALON)
     with st.container(border=True):
         st.markdown('<div class="panel-header">📸 5. FOTOĞRAFTAN / BELGEDEN YAPAY ZEKÂ İLE LİSTE AKTAR (OCR)</div>', unsafe_allow_html=True)
         c_foto_indir, c_foto_yukle = st.columns([1, 2])
@@ -1111,21 +1088,20 @@ with tab_kilit:
                             st.rerun()
 
 # ----------------------------------------------------
-# TAB 4: SIFIR TAVİZLİ DAĞITIM & DONDURMA MASASI
+# TAB 4: SIFIR TAVİZLİ BLOK MOTORU & DONDURMA MASASI
 # ----------------------------------------------------
 with tab_motor:
     if not tum_ogretmenler or not siniflar:
         st.warning("⚠️ Dağıtım için en az 1 öğretmen ve 1 sınıf gereklidir.")
     else:
         with st.container(border=True):
-            st.markdown('<div class="panel-header">🚀 Akıllı Dağıtım & Tavizsiz Çakışma Yönetimi</div>', unsafe_allow_html=True)
+            st.markdown('<div class="panel-header">🚀 Akıllı Dağıtım & Blok / Boşluk Optimizasyon Motoru</div>', unsafe_allow_html=True)
+            st.caption("⚡ **Gelişmiş Kurallar:** 2+2+1 Blok Ders Dağıtımı | Öğretmen Boşluk (Pencere) En Aza İndirme | Beden/Bilişim Mekân Koruması | Günlük Tavan Yük Kontrolü.")
             if st.session_state.dondurulan_ogretmenler:
                 st.info(f"📌 **Sabitlenmiş (Dondurulmuş) Öğretmenler:** {', '.join(st.session_state.dondurulan_ogretmenler)}")
 
             if st.session_state.teshis_hatalari:
                 st.error("⛔ **DERS PROGRAMI DAĞITILAMADI (Matematiksel Engel Tespit Edildi!)**")
-                st.markdown("Kilitli saatlere asla ders yerleştirilmez. Aşağıdaki hızlı butonlarla kilitleri pratikçe açabilirsiniz:")
-                
                 for idx, th in enumerate(st.session_state.teshis_hatalari):
                     c_bilgi, c_soft, c_sifirla = st.columns([2.5, 1.2, 1.3])
                     with c_bilgi:
@@ -1212,45 +1188,128 @@ with tab_motor:
                     st.rerun()
                 else:
                     st.session_state.teshis_hatalari = []
-                    with st.spinner("Tavizsiz ve çakışmasız ders programı hesaplanıyor..."):
+                    with st.spinner("Blok dersler, kilitler ve boşluklar optimize ediliyor..."):
                         model = cp_model.CpModel()
-                        zaman_dilimleri = [(g, s) for g in GUNLER for s in range(st.session_state.gun_saatleri[g])]
-                        dersler = df_aktif.to_dict("records")
+                        gun_saatleri = st.session_state.gun_saatleri
+                        zaman_dilimleri = [(g, s) for g in GUNLER for s in range(gun_saatleri[g])]
                         
-                        x = {}
-                        for i, d in enumerate(dersler):
-                            for g, s in zaman_dilimleri:
-                                x[(i, g, s)] = model.NewBoolVar(f"x_{i}_{g}_{s}")
+                        # 1. DERSLERİ BLOKLARA (2'ŞER VE 1'ERLİK BİRİMLERE) BÖLME
+                        ders_bloklari = []
+                        for row in df_aktif.to_dict("records"):
+                            parcalar = saat_parcala_bloklara(int(row["Saat"]))
+                            for p in parcalar:
+                                ders_bloklari.append({
+                                    "Öğretmen": row["Öğretmen"],
+                                    "Sınıf": row["Sınıf"],
+                                    "Ders": row["Ders"],
+                                    "Sure": p,
+                                    "OrijinalSaat": row["Saat"]
+                                })
+                        
+                        # Karar Değişkenleri: Blok başlangıç saatleri
+                        y = {}
+                        for b_idx, b in enumerate(ders_bloklari):
+                            sure = b["Sure"]
+                            for g in GUNLER:
+                                max_s = gun_saatleri[g]
+                                for s in range(max_s):
+                                    if s + sure <= max_s:
+                                        y[(b_idx, g, s)] = model.NewBoolVar(f"y_{b_idx}_{g}_{s}")
 
-                        for i, d in enumerate(dersler):
-                            ogr = d["Öğretmen"]
-                            for g, s in zaman_dilimleri:
-                                if (ogr, g, s) in st.session_state.kilitler:
-                                    model.Add(x[(i, g, s)] == 0)
+                        # Her blok tam olarak bir güne ve saate yerleşmeli
+                        for b_idx, b in enumerate(ders_bloklari):
+                            sure = b["Sure"]
+                            gecerli_slotlar = [y[(b_idx, g, s)] for g in GUNLER for s in range(gun_saatleri[g]) if s + sure <= gun_saatleri[g]]
+                            model.Add(sum(gecerli_slotlar) == 1)
 
-                        for i, d in enumerate(dersler):
-                            model.Add(sum(x[(i, g, s)] for g, s in zaman_dilimleri) == int(d["Saat"]))
+                        # Kilitli saatlere blok denk gelemez
+                        for b_idx, b in enumerate(ders_bloklari):
+                            ogr = b["Öğretmen"]
+                            sure = b["Sure"]
+                            for g in GUNLER:
+                                for s in range(gun_saatleri[g]):
+                                    if s + sure <= gun_saatleri[g]:
+                                        kilit_var_mi = any((ogr, g, s + offset) in st.session_state.kilitler for offset in range(sure))
+                                        if kilit_var_mi:
+                                            model.Add(y[(b_idx, g, s)] == 0)
 
+                        # Belirli bir (g, s) saat diliminde aktif olan blokları toplama
+                        def get_aktif_bloklar(g, s):
+                            aktif = []
+                            for b_idx, b in enumerate(ders_bloklari):
+                                sure = b["Sure"]
+                                for basla_s in range(max(0, s - sure + 1), s + 1):
+                                    if (b_idx, g, basla_s) in y:
+                                        aktif.append((b_idx, y[(b_idx, g, basla_s)]))
+                            return aktif
+
+                        # SINIF ÇAKIŞMASI: Bir sınıf aynı saatte en fazla 1 derste olabilir
                         for snf in siniflar:
-                            snf_i = [i for i, d in enumerate(dersler) if d["Sınıf"] == snf]
-                            for g, s in zaman_dilimleri:
-                                model.Add(sum(x[(i, g, s)] for i in snf_i) <= 1)
+                            for g in GUNLER:
+                                for s in range(gun_saatleri[g]):
+                                    slot_vars = [var for b_idx, var in get_aktif_bloklar(g, s) if ders_bloklari[b_idx]["Sınıf"] == snf]
+                                    model.Add(sum(slot_vars) <= 1)
 
+                        # ÖĞRETMEN ÇAKIŞMASI: Bir öğretmen aynı saatte en fazla 1 derste olabilir
                         for ogr in tum_ogretmenler:
-                            ogr_i = [i for i, d in enumerate(dersler) if d["Öğretmen"] == ogr]
-                            for g, s in zaman_dilimleri:
-                                model.Add(sum(x[(i, g, s)] for i in ogr_i) <= 1)
+                            for g in GUNLER:
+                                for s in range(gun_saatleri[g]):
+                                    slot_vars = [var for b_idx, var in get_aktif_bloklar(g, s) if ders_bloklari[b_idx]["Öğretmen"] == ogr]
+                                    model.Add(sum(slot_vars) <= 1)
 
+                        # FİZİKİ MEKÂN KISITI: Okuldaki Spor Salonu (Beden) ve Bilişim Lab aynı saatte en fazla 1 sınıfa tahsis edilebilir
+                        for g in GUNLER:
+                            for s in range(gun_saatleri[g]):
+                                beden_vars = [var for b_idx, var in get_aktif_bloklar(g, s) if "Beden" in ders_bloklari[b_idx]["Ders"]]
+                                bilisim_vars = [var for b_idx, var in get_aktif_bloklar(g, s) if "Bilişim" in ders_bloklari[b_idx]["Ders"]]
+                                if len(beden_vars) > 1:
+                                    model.Add(sum(beden_vars) <= 1)
+                                if len(bilisim_vars) > 1:
+                                    model.Add(sum(bilisim_vars) <= 1)
+
+                        # GÜNLÜK AZAMİ YÜK DENGESİ: Bir öğretmen günde maks ders sınırını aşamaz
+                        max_gun_ders = int(st.session_state.gunluk_maks_ders)
+                        for ogr in tum_ogretmenler:
+                            for g in GUNLER:
+                                gun_ders_toplami = []
+                                for s in range(gun_saatleri[g]):
+                                    slot_vars = [var for b_idx, var in get_aktif_bloklar(g, s) if ders_bloklari[b_idx]["Öğretmen"] == ogr]
+                                    gun_ders_toplami.extend(slot_vars)
+                                model.Add(sum(gun_ders_toplami) <= max_gun_ders)
+
+                        # DONDURULAN ÖĞRETMENLERİ KORUMA
                         for ogr in st.session_state.dondurulan_ogretmenler:
                             if ogr in st.session_state.dondurulan_atamalar:
                                 for (snf, drs, g, s) in st.session_state.dondurulan_atamalar[ogr]:
-                                    for i, d in enumerate(dersler):
-                                        if d["Öğretmen"] == ogr and d["Sınıf"] == snf and d["Ders"] == drs:
-                                            model.Add(x[(i, g, s)] == 1)
-                                            break
+                                    slot_vars = [var for b_idx, var in get_aktif_bloklar(g, s) 
+                                                 if ders_bloklari[b_idx]["Öğretmen"] == ogr and 
+                                                 ders_bloklari[b_idx]["Sınıf"] == snf and 
+                                                 ders_bloklari[b_idx]["Ders"] == drs]
+                                    if slot_vars:
+                                        model.Add(sum(slot_vars) >= 1)
+
+                        # BOŞLUK (PENCERE) AZALTMA HEDEF FONKSİYONU
+                        bosluk_cezasi = []
+                        for ogr in tum_ogretmenler:
+                            for g in GUNLER:
+                                max_s = gun_saatleri[g]
+                                # Ardışık olmayan dersler arasında boşluk kalmasını minimize et
+                                for s in range(1, max_s - 1):
+                                    onceki = [var for b_idx, var in get_aktif_bloklar(g, s - 1) if ders_bloklari[b_idx]["Öğretmen"] == ogr]
+                                    su_anki = [var for b_idx, var in get_aktif_bloklar(g, s) if ders_bloklari[b_idx]["Öğretmen"] == ogr]
+                                    sonraki = [var for b_idx, var in get_aktif_bloklar(g, s + 1) if ders_bloklari[b_idx]["Öğretmen"] == ogr]
+                                    if onceki and sonraki:
+                                        # Ceza değişkeni oluştur
+                                        delik_var = model.NewBoolVar(f"delik_{ogr}_{g}_{s}")
+                                        # onceki=1 ve sonraki=1 ama suanki=0 ise delik_var=1 olur
+                                        model.Add(sum(onceki) + sum(sonraki) - sum(su_anki) <= 1 + delik_var)
+                                        bosluk_cezasi.append(delik_var)
+
+                        if bosluk_cezasi:
+                            model.Minimize(sum(bosluk_cezasi))
 
                         solver = cp_model.CpSolver()
-                        solver.parameters.max_time_in_seconds = 30.0
+                        solver.parameters.max_time_in_seconds = 35.0
                         durum = solver.Solve(model)
 
                         if durum in (cp_model.OPTIMAL, cp_model.FEASIBLE):
@@ -1259,20 +1318,23 @@ with tab_motor:
                             
                             for g in GUNLER:
                                 for s in range(8):
-                                    if s >= st.session_state.gun_saatleri[g]:
+                                    if s >= gun_saatleri[g]:
                                         for o in tum_ogretmenler:
                                             prog_ogr[o][g][s] = "---"
                                         for snf in siniflar:
                                             prog_snf[snf][g][s] = "---"
 
-                            for i, d in enumerate(dersler):
-                                ogr = d["Öğretmen"]
-                                snf = d["Sınıf"]
-                                drs = d["Ders"]
-                                for g, s in zaman_dilimleri:
-                                    if solver.Value(x[(i, g, s)]) == 1:
-                                        prog_ogr[ogr][g][s] = f"{snf} ({drs})"
-                                        prog_snf[snf][g][s] = f"{drs} ({ogr})"
+                            for b_idx, b in enumerate(ders_bloklari):
+                                ogr = b["Öğretmen"]
+                                snf = b["Sınıf"]
+                                drs = b["Ders"]
+                                sure = b["Sure"]
+                                for g in GUNLER:
+                                    for s in range(gun_saatleri[g]):
+                                        if (b_idx, g, s) in y and solver.Value(y[(b_idx, g, s)]) == 1:
+                                            for offset in range(sure):
+                                                prog_ogr[ogr][g][s + offset] = f"{snf} ({drs})"
+                                                prog_snf[snf][g][s + offset] = f"{drs} ({ogr})"
 
                             for (ogr, g, s) in st.session_state.kilitler:
                                 if prog_ogr[ogr][g][s] == "-":
@@ -1281,6 +1343,7 @@ with tab_motor:
                             st.session_state.cozum_ogretmen = prog_ogr
                             st.session_state.cozum_sinif = prog_snf
 
+                            # AKILLI NÖBET MOTORU
                             nobet_atamalari = []
                             nobetci_ogrler = df_aktif[df_aktif["Nöbetçi"] == True]["Öğretmen"].unique()
                             
@@ -1289,7 +1352,7 @@ with tab_motor:
                                 gun_ardisik_bosluk = {}
                                 
                                 for g in GUNLER:
-                                    max_s = st.session_state.gun_saatleri[g]
+                                    max_s = gun_saatleri[g]
                                     saat_durumlari = [
                                         prog_ogr[ogr][g][s] in ["-", "---", "🔒 KİLİTLİ"]
                                         for s in range(max_s)
@@ -1320,7 +1383,7 @@ with tab_motor:
                                         "Nöbet Günü": en_uygun_nobet_gunu,
                                         "O Günkü Ders Saati": gun_ders_sayilari[en_uygun_nobet_gunu],
                                         "Maks. Ardışık Boşluk": f"{gun_ardisik_bosluk[en_uygun_nobet_gunu]} Saat",
-                                        "Durum": "Boş gün & 4 saat boşluk korundu ✅"
+                                        "Durum": "Boş gün & 4s boşluk korundu ✅"
                                     })
                                 else:
                                     okulda_oldugu_gunler = {g: ders_s for g, ders_s in gun_ders_sayilari.items() if ders_s > 0}
@@ -1343,12 +1406,12 @@ with tab_motor:
                                         })
 
                             st.session_state.nobet_listesi = pd.DataFrame(nobet_atamalari)
-                            st.success("🎉 MÜKEMMEL! Hiçbir kilit ihlal edilmedi, tüm dersler sıfır çakışmayla dağıtıldı!")
+                            st.success("🎉 MÜKEMMEL! Blok dersler, kilitler ve minimum boşluk dengesiyle sıfır çakışma çözüldü!")
                             st.rerun()
                         else:
                             st.session_state.cozum_ogretmen = None
                             st.session_state.cozum_sinif = None
-                            st.error("❌ Kilitler arasında karmaşık bir branş sıkışması oluştu!")
+                            st.error("❌ Kilitler ve blok kısıtları arasında çakışma oluştu. Kilitleri biraz gevşetmeyi deneyin.")
 
         if st.session_state.cozum_ogretmen is not None:
             with st.container(border=True):
@@ -1395,12 +1458,39 @@ with tab_motor:
                     st.table(df_tab)
 
 # ----------------------------------------------------
-# TAB 5: RESMÎ PDF ÇIKTILARI
+# TAB 5: RESMÎ PDF & MOBİL KART ÇIKTILARI
 # ----------------------------------------------------
 with tab_pdf:
     if st.session_state.cozum_sinif is None:
         st.warning("⚠️ Lütfen önce 4. Sekmeye gidip 'Programı Dağıt' butonuna basın.")
     else:
+        with st.container(border=True):
+            st.markdown('<div class="panel-header">📱 WHATSAPP UYUMLU MOBİL ÖĞRETMEN KARTI (RESİM / PNG)</div>', unsafe_allow_html=True)
+            c_mob_sec, c_mob_btn = st.columns([2, 1])
+            with c_mob_sec:
+                secilen_mob_ogr = st.selectbox("Mobil Kartı İndirilecek Öğretmen:", tum_ogretmenler, key="mob_ogr_sec")
+                nob_bilgi_mob = ""
+                if st.session_state.nobet_listesi is not None:
+                    nb_satir = st.session_state.nobet_listesi[st.session_state.nobet_listesi["Öğretmen"] == secilen_mob_ogr]
+                    if not nb_satir.empty:
+                        nob_bilgi_mob = nb_satir.iloc[0]["Nöbet Günü"]
+            with c_mob_btn:
+                st.write("")
+                kart_bytes = whatsapp_program_karti_uret(
+                    secilen_mob_ogr,
+                    st.session_state.cozum_ogretmen[secilen_mob_ogr],
+                    zil_saatlerini_uret(8),
+                    nob_bilgi_mob
+                )
+                st.download_button(
+                    label=f"📲 {secilen_mob_ogr} Mobil Kartını İndir (.png)",
+                    data=kart_bytes,
+                    file_name=f"{secilen_mob_ogr}_program_karti.png",
+                    mime="image/png",
+                    use_container_width=True
+                )
+            st.caption("Bu görsel telefon ekranlarına (1080x1920) özel boyutlandırılmıştır; WhatsApp veya Telegram üzerinden öğretmene doğrudan fotoğraf olarak atılabilir.")
+
         with st.container(border=True):
             st.markdown('<div class="panel-header">📄 Resmî MEB Formatında PDF Çıktı Modları</div>', unsafe_allow_html=True)
             pdf_secenek = st.radio(

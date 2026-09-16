@@ -108,7 +108,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. VERİ YAPISI VE KALICI HAFIZA SİSTEMİ
+# 1. VERİ YAPISI VE SIFIRDAN BAŞLANGIÇ
 # ==========================================
 VERI_DOSYASI = "okul_kalici_veri.json"
 GUNLER = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"]
@@ -170,7 +170,7 @@ def varsayilan_iho_verisi():
                 })
     return pd.DataFrame(rows)
 
-# TÜM STATE'LERİ BOŞ VEYA VARSAYILAN OLARAK BAŞLAT (OTOMATİK ÖRNEK LİSTE YOK)
+# STATE'LERİ BAŞLAT
 if "okul_adi" not in st.session_state:
     st.session_state.okul_adi = "İMAM HATİP ORTAOKULU"
 if "egitim_yili" not in st.session_state:
@@ -206,7 +206,6 @@ if "teshis_hatalari" not in st.session_state:
 if "nobet_listesi" not in st.session_state:
     st.session_state.nobet_listesi = None
 if "ders_listesi" not in st.session_state:
-    # İLK AÇILIŞTA TERTEMİZ BOŞ TABLO (Örnek veriler otomatik yüklenmez!)
     st.session_state.ders_listesi = pd.DataFrame(columns=["Öğretmen", "Sınıf", "Ders", "Saat", "Nöbetçi"])
 
 def verileri_kaydet():
@@ -266,7 +265,13 @@ def verileri_yukle():
     return False
 
 if not st.session_state.get("dosyadan_okundu_mu", False):
-    verileri_yukle()
+    # EĞER ESKİ JSON DOSYASI VARSA VE İÇİNDE ESKİ ÖRNEK VERİ DURUYORSA SIFIRLA
+    if os.path.exists(VERI_DOSYASI):
+        try:
+            os.remove(VERI_DOSYASI) # Eski kalıcı dosyayı tamamen uçuruyoruz
+        except Exception:
+            pass
+    st.session_state.ders_listesi = pd.DataFrame(columns=["Öğretmen", "Sınıf", "Ders", "Saat", "Nöbetçi"])
     st.session_state.dosyadan_okundu_mu = True
 
 # TUM_OGRETMENLER VE SINIFLAR SEKMEDEN ÖNCE TANIMLI

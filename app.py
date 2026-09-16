@@ -17,12 +17,12 @@ import zipfile
 st.set_page_config(page_title="Akıllı Okul Ders Dağıtım & Yönetim Sistemi", layout="wide")
 
 # ==========================================
-# 0. GENİŞ KADRAJ VE OKUNAKLI KURUMSAL CSS
+# 0. ULTRA-MODERN, KAVİSLİ & GÖLGELİ ARAYÜZ (CSS)
 # ==========================================
 st.markdown("""
 <style>
     .block-container {
-        padding-top: 1.2rem !important;
+        padding-top: 0.8rem !important;
         padding-bottom: 2rem !important;
         padding-left: 2rem !important;
         padding-right: 2rem !important;
@@ -32,13 +32,14 @@ st.markdown("""
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         font-size: 14px !important;
     }
+    
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        border: 1.5px solid rgba(128, 128, 128, 0.28) !important;
-        border-radius: 12px !important;
+        border: 1.5px solid rgba(128, 128, 128, 0.22) !important;
+        border-radius: 14px !important;
         background: rgba(255, 255, 255, 0.02) !important;
-        padding: 20px 26px !important;
+        padding: 22px 26px !important;
         margin-bottom: 22px !important;
-        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04) !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04) !important;
     }
     .panel-header {
         font-size: 15px !important;
@@ -46,54 +47,61 @@ st.markdown("""
         color: #0066cc;
         text-transform: uppercase;
         letter-spacing: 0.6px;
-        border-bottom: 2px solid rgba(0, 102, 204, 0.25);
+        border-bottom: 2px solid rgba(0, 102, 204, 0.22);
         padding-bottom: 8px;
         margin-bottom: 16px;
         display: flex;
         align-items: center;
         gap: 8px;
     }
+    
     .stButton > button {
         width: 100% !important;
-        border-radius: 8px !important;
+        border-radius: 9px !important;
         min-height: 44px !important;
         font-weight: 600 !important;
-        font-size: 14px !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        transition: all 0.2s ease-in-out;
-        border: 1px solid rgba(128, 128, 128, 0.3);
+        font-size: 13.8px !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        transition: all 0.22s ease-in-out;
+        border: 1px solid rgba(128, 128, 128, 0.25);
     }
     .stButton > button:hover {
-        transform: translateY(-1px);
+        transform: translateY(-2px);
         border-color: #0066cc !important;
-        box-shadow: 0 4px 12px rgba(0, 102, 204, 0.15);
+        box-shadow: 0 6px 18px rgba(0, 102, 204, 0.2);
     }
-    div[data-testid="metric-container"] {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(128, 128, 128, 0.2);
-        padding: 14px 18px !important;
-        border-radius: 10px !important;
-    }
-    div[data-testid="stMetricValue"] {
-        font-size: 1.45rem !important;
-        font-weight: 700 !important;
-    }
+    
     .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        padding-bottom: 10px;
+        gap: 12px;
+        padding: 6px 8px 14px 8px;
+        border-bottom: 1px solid rgba(128, 128, 128, 0.18);
     }
     .stTabs [data-baseweb="tab"] {
-        border-radius: 8px 8px 0px 0px;
-        padding: 11px 22px;
-        font-weight: 600;
-        font-size: 14.5px;
-        border: 1px solid rgba(128, 128, 128, 0.2);
-        border-bottom: none;
+        border-radius: 10px !important;
+        padding: 10px 20px !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        border: 1px solid rgba(128, 128, 128, 0.18) !important;
+        background: rgba(128, 128, 128, 0.05);
+        color: #334155 !important;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+        transition: all 0.2s ease-in-out;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        transform: translateY(-2px);
+        background: rgba(0, 102, 204, 0.08);
+        border-color: rgba(0, 102, 204, 0.3) !important;
+        color: #0066cc !important;
     }
     .stTabs [aria-selected="true"] {
-        background: #0066cc !important;
+        background: linear-gradient(135deg, #0052cc 0%, #0066cc 100%) !important;
         color: white !important;
-        border-color: #0066cc !important;
+        border-color: #0052cc !important;
+        box-shadow: 0 4px 14px rgba(0, 102, 204, 0.35) !important;
+        transform: translateY(-1px);
+    }
+    .stTabs [data-baseweb="tab-highlight"] {
+        display: none !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -721,16 +729,26 @@ def cakismalari_denetle(df_ders, gun_saatleri, kilitler, tum_ogretmenler, sinifl
                 
     return teshisler
 
-# ==========================================
-# 5. GÖRSEL PANEL VE ANA SEKMELER
-# ==========================================
+# ========================================================
+# ULTRA-MODERN BAŞLIK: ÜSTÜ KESKİN, ALTI YUVARLAK & GÖLGELİ
+# ========================================================
 st.markdown(f"""
-<div style="background: linear-gradient(135deg, #004c99 0%, #0066cc 100%); padding: 18px 26px; border-radius: 12px; color: white; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 14px rgba(0,102,204,0.15);">
+<div style="
+    background: linear-gradient(135deg, #004c99 0%, #0066cc 100%); 
+    padding: 22px 30px; 
+    border-radius: 0px 0px 24px 24px; 
+    color: white; 
+    margin-bottom: 22px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    box-shadow: 0 10px 25px -5px rgba(0, 102, 204, 0.35);
+">
     <div>
-        <h2 style="margin: 0; font-size: 22px; font-weight: 800; color: white;">🏛️ {st.session_state.okul_adi}</h2>
-        <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.95;">Akıllı Ders Dağıtım, Blok Motoru & Nöbet Yönetim Sistemi</p>
+        <h2 style="margin: 0; font-size: 23px; font-weight: 800; color: white; letter-spacing: -0.3px;">🏛️ {st.session_state.okul_adi}</h2>
+        <p style="margin: 4px 0 0 0; font-size: 14.5px; opacity: 0.92;">Akıllı Ders Dağıtım, Blok Motoru & Nöbet Yönetim Sistemi</p>
     </div>
-    <span style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); padding: 6px 16px; border-radius: 6px; font-size: 13.5px; font-weight: 700;">{st.session_state.egitim_yili}</span>
+    <span style="background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4); padding: 7px 18px; border-radius: 8px; font-size: 13.5px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">{st.session_state.egitim_yili}</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -743,10 +761,6 @@ tab_okul, tab_kisi_ders, tab_kilit, tab_motor, tab_pdf, tab_carsaf, tab_nobet = 
     "📋 6. İdareci Çarşafı",
     "🛡️ 7. Akıllı Nöbet"
 ])
-
-df_aktif = st.session_state.ders_listesi[st.session_state.ders_listesi["Saat"] > 0]
-tum_ogretmenler = sorted(list(df_aktif["Öğretmen"].unique())) if not df_aktif.empty else []
-siniflar = sorted(list(df_aktif["Sınıf"].unique())) if not df_aktif.empty else []
 
 # ----------------------------------------------------
 # TAB 1: OKUL KÜNYESİ VE ZİL SAATLERİ
@@ -1451,7 +1465,7 @@ with tab_motor:
         # ==========================================
         with st.container(border=True):
             st.markdown('<div class="panel-header">🖱️ CANLI İNTERAKTİF SÜRÜKLE-BIRAK (DRAG & DROP) MASASI</div>', unsafe_allow_html=True)
-            st.caption("Ders kartını farenin sol tuşuyla tutup istediğiniz güne ve saate sürükleyin. Bıraktığınız yerde ders varsa otomatik yer değiştirirler (Swap).")
+            st.caption("Ders kartını farenin sol tuşuyla tutup istediğiniz güne ve saate sürükleyin. Yerinde ders varsa otomatik yer değiştirirler (Swap).")
             
             c_mod, c_sec, c_dondur = st.columns([1, 1.5, 1.5])
             with c_mod:
@@ -1520,12 +1534,12 @@ with tab_motor:
                 <style>
                     body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 10px; background: transparent; }}
                     .dnd-table {{ width: 100%; border-collapse: separate; border-spacing: 6px; }}
-                    .dnd-table th {{ background: #0066cc; color: white; padding: 10px; border-radius: 6px; font-size: 13.5px; font-weight: 700; text-align: center; }}
-                    .time-th {{ background: rgba(128, 128, 128, 0.1); border-radius: 6px; padding: 6px; text-align: center; font-size: 12px; color: #444; width: 110px; }}
+                    .dnd-table th {{ background: linear-gradient(135deg, #0052cc 0%, #0066cc 100%); color: white; padding: 11px; border-radius: 8px; font-size: 13.8px; font-weight: 700; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }}
+                    .time-th {{ background: rgba(128, 128, 128, 0.1); border-radius: 8px; padding: 6px; text-align: center; font-size: 12px; color: #444; width: 110px; }}
                     .slot {{ min-width: 140px; height: 54px; border-radius: 8px; border: 1.5px dashed #cbd5e1; text-align: center; vertical-align: middle; padding: 4px; background: rgba(255,255,255,0.4); }}
                     .slot.empty {{ border-color: #cbd5e1; }}
                     .slot.locked {{ background: #f1f5f9; border-style: solid; border-color: #cbd5e1; color: #94a3b8; font-size: 11.5px; font-weight: 600; }}
-                    .card-item {{ background: #e0f2fe; color: #0369a1; border: 1.5px solid #0284c7; border-radius: 6px; padding: 8px 6px; font-size: 13px; font-weight: 700; cursor: grab; user-select: none; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.15s; }}
+                    .card-item {{ background: #e0f2fe; color: #0369a1; border: 1.5px solid #0284c7; border-radius: 6px; padding: 8px 6px; font-size: 13px; font-weight: 700; cursor: grab; user-select: none; box-shadow: 0 2px 5px rgba(0,0,0,0.06); transition: all 0.15s; }}
                     .card-item:hover {{ background: #bae6fd; transform: scale(1.02); }}
                     .card-item:active {{ cursor: grabbing; opacity: 0.6; }}
                     .empty-label {{ color: #cbd5e1; font-size: 16px; font-weight: bold; }}
@@ -1561,6 +1575,11 @@ with tab_motor:
 
                         dragSrcEl.innerHTML = destCard;
                         targetSlot.innerHTML = srcCard;
+                        
+                        // Tarayıcı sessionStorage'a son swap'ı geçici kaydet
+                        let swaps = JSON.parse(sessionStorage.getItem('last_swaps') || '[]');
+                        swaps.push({{src_g: srcGun, src_s: parseInt(srcSaat), dst_g: destGun, dst_s: parseInt(destSaat)}});
+                        sessionStorage.setItem('last_swaps', JSON.stringify(swaps));
                     }}
                 </script>
                 </head>
@@ -1585,6 +1604,27 @@ with tab_motor:
                 """
 
                 components.html(dnd_html, height=540, scrolling=True)
+
+                # ========================================================
+                # KALICI SÜRÜKLE-BIRAK KAYDET & KİLİTLEME BUTONU
+                # ========================================================
+                col_save_dnd, col_info_dnd = st.columns([1.5, 2.5])
+                with col_save_dnd:
+                    if st.button(f"💾 {secilen_hoca} Sürükleme Değişikliklerini Kaydet & Sabitle", type="primary", use_container_width=True):
+                        atamalar = []
+                        for g in GUNLER:
+                            for s in range(st.session_state.gun_saatleri[g]):
+                                val = st.session_state.cozum_ogretmen[secilen_hoca][g][s]
+                                if val not in ["-", "---", "🔒 KİLİTLİ"] and " (" in val:
+                                    par = val.split(" (")
+                                    atamalar.append((par[0].strip(), par[1].replace(")", "").strip(), g, s))
+                        st.session_state.dondurulan_atamalar[secilen_hoca] = atamalar
+                        st.session_state.dondurulan_ogretmenler.add(secilen_hoca)
+                        verileri_kaydet()
+                        st.success(f"✅ {secilen_hoca} hocanın sürüklenen yeni saatleri sabitlendi ve hafızaya kazındı! Genel dağıtım yapılsa dahi bozulmayacak.")
+                        st.rerun()
+                with col_info_dnd:
+                    st.caption("💡 Masada farenizle yaptığınız taşımalar sonrasında bu butona bastığınızda, öğretmenin programı kalıcı olarak kilitlenir ve 'Tüm Okulu Dağıt' deseniz bile asla yeri bozulmaz.")
 
             else:
                 with c_sec:

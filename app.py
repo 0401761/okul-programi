@@ -468,6 +468,114 @@ def ogle_arasi_saat_araligi():
 
 zil_etiketleri = [f"{i+1}. Ders\n({saat})" for i, saat in enumerate(zil_saatlerini_uret(8))]
 
+# ========================================================
+# RESMÎ ZİL VE GİRİŞ-ÇIKIŞ ÇİZELGESİ İÇİN EXCEL MOTORU
+# ========================================================
+def zil_cizelgesi_verisi_olustur():
+    saat_araliklari = zil_saatlerini_uret(8)
+    d_dk = int(st.session_state.get("ders_dk", 40))
+    ogle_d = int(st.session_state.get("ogle_arasi_ders", 5))
+    ogle_dk = int(st.session_state.get("ogle_arasi_dk", 45))
+    ten_dict = st.session_state.get("teneffus_sureleri", {1:20, 2:10, 3:10, 4:10, 5:10, 6:10, 7:10})
+    
+    rows = []
+    for s in range(1, 9):
+        aralik = saat_araliklari[s-1]
+        bas, bit = aralik.split("-")
+        
+        if s == ogle_d:
+            ara_aciklama = f"🍽️ {ogle_dk} Dk (Öğle Yemeği Arası: {ogle_arasi_saat_araligi()})"
+        elif s < 8:
+            t_dk = ten_dict.get(s, 10)
+            ara_aciklama = f"🍳 {t_dk} Dk (Kahvaltı Teneffüsü)" if s == 1 else f"☕ {t_dk} Dk (Dinlenme Teneffüsü)"
+        else:
+            ara_aciklama = "🔔 Ders Bitişi / Gün Sonu Çıkışı"
+            
+        rows.append({
+            "Ders No": f"{s}. Ders",
+            "Giriş Saati": bas,
+            "Çıkış Saati": bit,
+            "Ders Süresi": f"{d_dk} Dakika",
+            "Teneffüs / Dinlenme Açıklaması": ara_aciklama
+        })
+    return pd.DataFrame(rows)
+
+def stil_zil_excel_uret(df_zil, okul_adi, mudur_adi, egitim_yili):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Ders_Zil_Saatleri"
+    
+    title_font = Font(name="Calibri", size=13, bold=True, color="002060")
+    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    cell_font = Font(name="Calibri", size=10)
+    bold_cell_font = Font(name="Calibri", size=10, bold=True)
+    
+    thin_side = Side(style='thin', color='B0C4DE')
+    thin_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+    header_fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
+    
+    ws.merge_cells("A1:E1")
+    ws["A1"] = f"T.C. MİLLÎ EĞİTİM BAKANLIĞI - {okul_adi.upper()} MÜDÜRLÜĞÜ"
+    ws["A1"].font = title_font
+    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 24
+    
+    ws.merge_cells("A2:E2")
+    ws["A2"] = f"{egitim_yili} GÜNLÜK RESMÎ DERS GİRİŞ - ÇIKIŞ VE ZİL ÇİZELGESİ"
+    ws["A2"].font = Font(name="Calibri", size=11, bold=True, color="1F4E79")
+    ws["A2"].alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[2].height = 20
+
+    headers = ["Ders No", "Giriş Saati", "Çıkış Saati", "Ders Süresi", "Teneffüs / Dinlenme Açıklaması"]
+    for col_idx, h_text in enumerate(headers, start=1):
+        cell = ws.cell(row=4, column=col_idx, value=h_text)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = thin_border
+    ws.row_dimensions[4].height = 24
+    
+    for r_idx, row in df_zil.iterrows():
+        row_num = r_idx + 5
+        ws.row_dimensions[row_num].height = 22
+        
+        c1 = ws.cell(row=row_num, column=1, value=str(row["Ders No"]))
+        c2 = ws.cell(row=row_num, column=2, value=str(row["Giriş Saati"]))
+        c3 = ws.cell(row=row_num, column=3, value=str(row["Çıkış Saati"]))
+        c4 = ws.cell(row=row_num, column=4, value=str(row["Ders Süresi"]))
+        c5 = ws.cell(row=row_num, column=5, value=str(row["Teneffüs / Dinlenme Açıklaması"]))
+        
+        c1.font = bold_cell_font
+        c2.font = bold_cell_font
+        c3.font = bold_cell_font
+        c4.font = cell_font
+        c5.font = cell_font
+        
+        c1.alignment = Alignment(horizontal="center", vertical="center")
+        c2.alignment = Alignment(horizontal="center", vertical="center")
+        c3.alignment = Alignment(horizontal="center", vertical="center")
+        c4.alignment = Alignment(horizontal="center", vertical="center")
+        c5.alignment = Alignment(horizontal="left", vertical="center")
+        
+        for c in [c1, c2, c3, c4, c5]:
+            c.border = thin_border
+            
+    # İmza alanı
+    sig_row = len(df_zil) + 7
+    ws.cell(row=sig_row, column=4, value="Uygundur").font = Font(name="Calibri", size=10, bold=True)
+    ws.cell(row=sig_row+1, column=4, value=f"{mudur_adi}").font = Font(name="Calibri", size=10, bold=True)
+    ws.cell(row=sig_row+2, column=4, value="Okul Müdürü / İmza - Mühür").font = Font(name="Calibri", size=9, italic=True)
+
+    ws.column_dimensions["A"].width = 16
+    ws.column_dimensions["B"].width = 16
+    ws.column_dimensions["C"].width = 16
+    ws.column_dimensions["D"].width = 18
+    ws.column_dimensions["E"].width = 44
+    
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
 def render_meb_print_view(icerik_listesi, toplu_mu=False):
     pages_html = ""
     for idx, (baslik, alt_baslik, df_tablo, nobet_bilgisi) in enumerate(icerik_listesi):
@@ -768,7 +876,7 @@ tab_okul, tab_kisi_ders, tab_kilit, tab_motor, tab_pdf, tab_carsaf, tab_nobet = 
 ])
 
 # ----------------------------------------------------
-# TAB 1: OKUL KÜNYESİ VE ZİL SAATLERİ (SADE & NET)
+# TAB 1: OKUL KÜNYESİ VE ZİL SAATLERİ (YENİ RESMÎ TABLO & EXCEL)
 # ----------------------------------------------------
 with tab_okul:
     with st.container(border=True):
@@ -836,30 +944,33 @@ with tab_okul:
                         st.session_state.teneffus_sureleri[t_idx] = yeni_ten
                         verileri_kaydet()
 
+    # YENİLENEN RESMÎ ÇİZELGE VE VELİ/OKUL İNDİRME ALANI
     with st.container(border=True):
-        st.markdown('<div class="panel-header">📋 Oluşturulan Günlük Resmî Ders & Zil Çizelgesi</div>', unsafe_allow_html=True)
-        zil_listesi = zil_saatlerini_uret(8)
-        ogle_ders_no = int(st.session_state.ogle_arasi_ders)
+        st.markdown('<div class="panel-header">📋 OLUŞTURULAN GÜNLÜK RESMÎ DERS GİRİŞ - ÇIKIŞ VE ZİL ÇİZELGESİ</div>', unsafe_allow_html=True)
+        st.caption("📌 Okul panosuna asılabilecek ve velilerle paylaşılabilecek resmî zil ve ders saatleri tablosudur.")
         
-        st.markdown("**☀️ Öğleden Önceki Dersler:**")
-        cols_sabah = st.columns(ogle_ders_no)
-        for i in range(ogle_ders_no):
-            with cols_sabah[i]:
-                st.metric(f"{i+1}. Ders", zil_listesi[i])
+        df_zil_cizelgesi = zil_cizelgesi_verisi_olustur()
         
-        st.markdown(f"""
-        <div style="background: rgba(0, 102, 204, 0.08); border: 1.5px dashed #0066cc; border-radius: 8px; padding: 10px 20px; margin: 12px 0; display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-weight: 700; color: #004c99; font-size: 14px;">🍽️ {ogle_ders_no}. DERSTEN SONRA ÖĞLE ARASI ({st.session_state.ogle_arasi_dk} DAKİKA)</span>
-            <span style="background: #0066cc; color: white; padding: 5px 14px; border-radius: 6px; font-weight: 700; font-size: 13px;">Saat: {ogle_arasi_saat_araligi()}</span>
-        </div>
-        """, unsafe_allow_html=True)
-
-        kalan_ders_sayisi = 8 - ogle_ders_no
-        st.markdown("**🌙 Öğleden Sonraki Dersler:**")
-        cols_ogle = st.columns(kalan_ders_sayisi)
-        for idx, i in enumerate(range(ogle_ders_no, 8)):
-            with cols_ogle[idx]:
-                st.metric(f"{i+1}. Ders", zil_listesi[i])
+        c_zil_dl, c_zil_info = st.columns([1.5, 2.5])
+        with c_zil_dl:
+            zil_excel_bytes = stil_zil_excel_uret(
+                df_zil_cizelgesi,
+                st.session_state.okul_adi,
+                st.session_state.mudur_adi,
+                st.session_state.egitim_yili
+            )
+            st.download_button(
+                label="📥 Resmî Ders Giriş-Çıkış Saatleri Çizelgesini İndir (.xlsx)",
+                data=zil_excel_bytes,
+                file_name=f"{st.session_state.okul_adi}_ders_giris_cikis_saatleri.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+        with c_zil_info:
+            st.caption("💡 İndirilen Excel belgesi resmî MEB başlığı, ders süreleri, teneffüs aralıkları ve okul müdürü onay alanıyla birlikte A4 çıktısına hazır haldedir.")
+            
+        st.write("")
+        st.dataframe(df_zil_cizelgesi, use_container_width=True, hide_index=True)
 
 # ----------------------------------------------------
 # TAB 2: ÖĞRETMEN, SINIF & DERS YÖNETİMİ (MAAŞ / EK DERSLİ)

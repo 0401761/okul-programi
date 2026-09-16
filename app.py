@@ -173,7 +173,7 @@ def verileri_kaydet():
     try:
         with open(VERI_DOSYASI, "w", encoding="utf-8") as f:
             json.dump(veri, f, ensure_ascii=False, indent=4)
-    except Exception as e:
+    except Exception:
         pass
 
 def verileri_yukle():
@@ -200,7 +200,7 @@ def verileri_yukle():
                 st.session_state.cozum_ogretmen = veri.get("cozum_ogretmen", None)
                 st.session_state.cozum_sinif = veri.get("cozum_sinif", None)
                 return True
-        except Exception as e:
+        except Exception:
             pass
     return False
 
@@ -520,8 +520,10 @@ def stil_carsaf_excel_uret(veri_matrisi, gun_saat_listesi, baslik_tur="Öğretme
     
     thin_side = Side(style='thin', color='D9D9D9')
     thick_side = Side(style='medium', color='1F4E79')
+    
     thin_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
     thick_right_border = Border(left=thin_side, right=thick_side, top=thin_side, bottom=thin_side)
+    
     day_colors = ["1F4E79", "2F5597", "1F4E79", "2F5597", "1F4E79"]
     
     ws.merge_cells("A1:AL1")
@@ -1248,7 +1250,6 @@ with tab_motor:
                                 res_status = s_solver.Solve(m)
                                 return res_status, s_solver, b_list, vy
                             else:
-                                # Klasik tek saatlik esnek model
                                 d_list = df_aktif.to_dict("records")
                                 vx = {}
                                 for i, d in enumerate(d_list):
@@ -1279,7 +1280,6 @@ with tab_motor:
                                 res_status = s_solver.Solve(m)
                                 return res_status, s_solver, d_list, vx
 
-                        # Önce bloklu çöz, sıkışırsa esnek çöz
                         durum, cozumcu, b_data, var_dict = model_olustur_ve_coz(bloklu_mu=True)
                         blok_kullanildi = True
                         if durum not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
@@ -1320,7 +1320,6 @@ with tab_motor:
                             st.session_state.cozum_ogretmen = prog_ogr
                             st.session_state.cozum_sinif = prog_snf
 
-                            # Nöbet ataması
                             nobet_atamalari = []
                             for ogr in df_aktif[df_aktif["Nöbetçi"] == True]["Öğretmen"].unique():
                                 g_sayilar = {g: sum(1 for s in range(st.session_state.gun_saatleri[g]) if prog_ogr[ogr][g][s] not in ["-", "---", "🔒 KİLİTLİ"]) for g in GUNLER}
@@ -1347,7 +1346,6 @@ with tab_motor:
             with c_mod:
                 goruntu_modu = st.radio("İnceleme Modu:", ["👨‍🏫 Öğretmen", "🏫 Sınıf"], horizontal=True)
             
-            # Eğer henüz çözüm yoksa boş şablon hazırla
             if st.session_state.cozum_ogretmen is None:
                 st.session_state.cozum_ogretmen = {o: {g: ["-"] * 8 for g in GUNLER} for o in tum_ogretmenler}
                 st.session_state.cozum_sinif = {s: {g: ["-"] * 8 for g in GUNLER} for s in siniflar}
@@ -1380,11 +1378,9 @@ with tab_motor:
                             verileri_kaydet()
                             st.rerun()
 
-                # Tablo Görünümü
                 df_tab = pd.DataFrame(st.session_state.cozum_ogretmen[secilen_hoca], index=zil_etiketleri)
                 st.dataframe(df_tab, use_container_width=True)
 
-                # Manuel Ders Değiştirme / Taşıma Formu
                 st.markdown(f"**⚡ {secilen_hoca} İçin Manuel Ders Taşı / Değiştir:**")
                 c_m_gun, c_m_saat, c_m_yeni = st.columns([1, 1, 2])
                 with c_m_gun:
@@ -1547,7 +1543,7 @@ with tab_carsaf:
         with st.container(border=True):
             if "Öğretmen" in carsaf_gorunum:
                 st.markdown('<div class="panel-header">📊 Öğretmen Konsolide Çarşaf Matrisi</div>', unsafe_allow_html=True)
-                df_carsaf = pd.DataFrame(pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols))
+                df_carsaf = pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols)
                 st.dataframe(df_carsaf, use_container_width=True, height=450)
             else:
                 data_dict = {}
@@ -1578,7 +1574,7 @@ with tab_carsaf:
                     use_container_width=True
                 )
                 st.markdown('<div class="panel-header">📊 Sınıf Konsolide Çarşaf Matrisi</div>', unsafe_allow_html=True)
-                df_carsaf = pd.DataFrame(pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols)
+                df_carsaf = pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols)
                 st.dataframe(df_carsaf, use_container_width=True, height=450)
     else:
         st.info("Program henüz dağıtılmadı. 4. Sekmeden dağıtım yapıldığında çarşaf çizelge burada görünecektir.")

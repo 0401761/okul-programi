@@ -33,6 +33,7 @@ st.markdown("""
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         font-size: 14.5px !important;
     }
+    
     div[data-testid="stVerticalBlockBorderWrapper"] {
         border: 1.5px solid rgba(128, 128, 128, 0.25) !important;
         border-radius: 14px !important;
@@ -54,6 +55,7 @@ st.markdown("""
         align-items: center;
         gap: 8px;
     }
+    
     .stButton > button {
         width: 100% !important;
         border-radius: 9px !important;
@@ -69,6 +71,7 @@ st.markdown("""
         border-color: #0066cc !important;
         box-shadow: 0 6px 18px rgba(0, 102, 204, 0.22);
     }
+    
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px !important;
         padding: 8px 6px 14px 6px !important;
@@ -182,8 +185,6 @@ if "ogle_arasi_ders" not in st.session_state:
     st.session_state.ogle_arasi_ders = 5
 if "ogle_arasi_dk" not in st.session_state:
     st.session_state.ogle_arasi_dk = 45
-if "cuma_ogle_dk" not in st.session_state:
-    st.session_state.cuma_ogle_dk = 60
 if "gunluk_maks_ders" not in st.session_state:
     st.session_state.gunluk_maks_ders = 6
 if "teneffus_sureleri" not in st.session_state:
@@ -216,7 +217,6 @@ def verileri_kaydet():
         "ders_dk": st.session_state.ders_dk,
         "ogle_arasi_ders": st.session_state.ogle_arasi_ders,
         "ogle_arasi_dk": st.session_state.ogle_arasi_dk,
-        "cuma_ogle_dk": st.session_state.cuma_ogle_dk,
         "gunluk_maks_ders": st.session_state.gunluk_maks_ders,
         "teneffus_sureleri": {str(k): v for k, v in st.session_state.teneffus_sureleri.items()},
         "gun_saatleri": st.session_state.gun_saatleri,
@@ -246,7 +246,6 @@ def verileri_yukle():
                 st.session_state.ders_dk = int(veri.get("ders_dk", 40))
                 st.session_state.ogle_arasi_ders = int(veri.get("ogle_arasi_ders", 5))
                 st.session_state.ogle_arasi_dk = int(veri.get("ogle_arasi_dk", 45))
-                st.session_state.cuma_ogle_dk = int(veri.get("cuma_ogle_dk", 60))
                 st.session_state.gunluk_maks_ders = int(veri.get("gunluk_maks_ders", 6))
                 st.session_state.teneffus_sureleri = {int(k): v for k, v in veri.get("teneffus_sureleri", {1:20, 2:10, 3:10, 4:10, 5:10, 6:10, 7:10}).items()}
                 st.session_state.gun_saatleri = veri.get("gun_saatleri", {"Pazartesi":7, "Salı":7, "Çarşamba":8, "Perşembe":7, "Cuma":7})
@@ -269,7 +268,7 @@ if not st.session_state.get("dosyadan_okundu_mu", False):
     verileri_yukle()
     st.session_state.dosyadan_okundu_mu = True
 
-# TUM_OGRETMENLER VE SINIFLARI SEKMEDEN ÖNCE TANIMLA
+# TUM_OGRETMENLER VE SINIFLAR SEKMEDEN ÖNCE TANIMLI
 df_aktif = st.session_state.ders_listesi[st.session_state.ders_listesi["Saat"] > 0]
 tum_ogretmenler = sorted(list(df_aktif["Öğretmen"].unique())) if not df_aktif.empty else []
 siniflar = sorted(list(df_aktif["Sınıf"].unique())) if not df_aktif.empty else []
@@ -423,13 +422,13 @@ def whatsapp_program_karti_uret(ogretmen_adi, program_sozlugu, zil_saatleri, nob
     img.save(buf, format="PNG", optimize=True)
     return buf.getvalue()
 
-def zil_saatlerini_uret(toplam_saat=8, gun="Pazartesi"):
+def zil_saatlerini_uret(toplam_saat=8):
     saatler = []
     try:
         baslangic_str = str(st.session_state.get("ders_baslangic", "08:30"))
         ders_dakika = int(st.session_state.get("ders_dk", 40))
         ogle_ders_idx = int(st.session_state.get("ogle_arasi_ders", 5))
-        ogle_dakika = int(st.session_state.get("cuma_ogle_dk", 60)) if gun == "Cuma" else int(st.session_state.get("ogle_arasi_dk", 45))
+        ogle_dakika = int(st.session_state.get("ogle_arasi_dk", 45))
         teneffusler = st.session_state.get("teneffus_sureleri", {1:20, 2:10, 3:10, 4:10, 5:10, 6:10, 7:10})
         
         cur_t = datetime.strptime(baslangic_str, "%H:%M")
@@ -449,12 +448,12 @@ def zil_saatlerini_uret(toplam_saat=8, gun="Pazartesi"):
             cur_t = bitis_t + timedelta(minutes=10)
     return saatler
 
-def ogle_arasi_saat_araligi(gun="Pazartesi"):
+def ogle_arasi_saat_araligi():
     try:
         baslangic_str = str(st.session_state.get("ders_baslangic", "08:30"))
         ders_dakika = int(st.session_state.get("ders_dk", 40))
         ogle_ders_idx = int(st.session_state.get("ogle_arasi_ders", 5))
-        ogle_dakika = int(st.session_state.get("cuma_ogle_dk", 60)) if gun == "Cuma" else int(st.session_state.get("ogle_arasi_dk", 45))
+        ogle_dakika = int(st.session_state.get("ogle_arasi_dk", 45))
         teneffusler = st.session_state.get("teneffus_sureleri", {1:20, 2:10, 3:10, 4:10, 5:10, 6:10, 7:10})
         
         cur_t = datetime.strptime(baslangic_str, "%H:%M")
@@ -769,7 +768,7 @@ tab_okul, tab_kisi_ders, tab_kilit, tab_motor, tab_pdf, tab_carsaf, tab_nobet = 
 ])
 
 # ----------------------------------------------------
-# TAB 1: OKUL KÜNYESİ VE ZİL SAATLERİ (CUMA AYARLI)
+# TAB 1: OKUL KÜNYESİ VE ZİL SAATLERİ (SADE & NET)
 # ----------------------------------------------------
 with tab_okul:
     with st.container(border=True):
@@ -792,7 +791,7 @@ with tab_okul:
 
     with st.container(border=True):
         st.markdown('<div class="panel-header">⏰ Ders & Öğle Arası & Yük Denge Parametreleri</div>', unsafe_allow_html=True)
-        c_z1, c_z2, c_z3, c_z4, c_z5, c_z6 = st.columns(6)
+        c_z1, c_z2, c_z3, c_z4, c_z5 = st.columns(5)
         with c_z1:
             yeni_bas = st.text_input("1. Ders Başlama", value=st.session_state.ders_baslangic, placeholder="08:30")
         with c_z2:
@@ -800,21 +799,18 @@ with tab_okul:
         with c_z3:
             yeni_ogle_ders = st.number_input("Öğle Arası Kaçıncı Dersten Sonra?", min_value=2, max_value=6, value=int(st.session_state.ogle_arasi_ders))
         with c_z4:
-            yeni_ogle_dk = st.number_input("Öğle Arası (Pzt-Per) Dk", min_value=20, max_value=90, value=int(st.session_state.ogle_arasi_dk))
+            yeni_ogle_dk = st.number_input("Öğle Arası Süresi (Dk)", min_value=20, max_value=90, value=int(st.session_state.ogle_arasi_dk))
         with c_z5:
-            yeni_cuma_dk = st.number_input("🕌 Cuma Öğle/Namaz (Dk)", min_value=30, max_value=120, value=int(st.session_state.cuma_ogle_dk))
-        with c_z6:
-            yeni_gun_max = st.number_input("Günlük Maks. Ders", min_value=4, max_value=8, value=int(st.session_state.gunluk_maks_ders))
+            yeni_gun_max = st.number_input("Günlük Maks. Ders (Öğretmen)", min_value=4, max_value=8, value=int(st.session_state.gunluk_maks_ders))
 
         if st.button("💾 Zaman ve Yük Parametrelerini Kalıcı Kaydet", use_container_width=True):
             st.session_state.ders_baslangic = yeni_bas
             st.session_state.ders_dk = yeni_dk
             st.session_state.ogle_arasi_ders = yeni_ogle_ders
             st.session_state.ogle_arasi_dk = yeni_ogle_dk
-            st.session_state.cuma_ogle_dk = yeni_cuma_dk
             st.session_state.gunluk_maks_ders = yeni_gun_max
             verileri_kaydet()
-            st.success("✅ Zaman ve Cuma namazı parametreleri kalıcı olarak kaydedildi!")
+            st.success("✅ Zaman parametreleri kalıcı olarak kaydedildi!")
             st.rerun()
 
     with st.container(border=True):
@@ -829,7 +825,7 @@ with tab_okul:
                     etiket = f"🍽️ {t_idx}. Ten. (Öğle)"
                 
                 if t_idx == int(st.session_state.ogle_arasi_ders):
-                    st.info(f"🍽️ {st.session_state.ogle_arasi_dk} Dk (Cuma: {st.session_state.cuma_ogle_dk} Dk)")
+                    st.info(f"🍽️ {st.session_state.ogle_arasi_dk} Dk (Öğle)")
                 else:
                     eski_ten = st.session_state.teneffus_sureleri.get(t_idx, 10)
                     yeni_ten = st.number_input(
@@ -842,20 +838,28 @@ with tab_okul:
 
     with st.container(border=True):
         st.markdown('<div class="panel-header">📋 Oluşturulan Günlük Resmî Ders & Zil Çizelgesi</div>', unsafe_allow_html=True)
-        c_zil_norm, c_zil_cuma = st.columns(2)
-        with c_zil_norm:
-            st.markdown("**📅 Pazartesi - Perşembe Saatleri:**")
-            st.caption(f"Öğle Arası: {ogle_arasi_saat_araligi('Pazartesi')} ({st.session_state.ogle_arasi_dk} dk)")
-            zil_listesi_norm = zil_saatlerini_uret(8, "Pazartesi")
-            df_zn = pd.DataFrame({"Ders": [f"{i+1}. Ders" for i in range(8)], "Saat": zil_listesi_norm})
-            st.dataframe(df_zn, use_container_width=True, hide_index=True)
-            
-        with c_zil_cuma:
-            st.markdown("**🕌 Cuma Gününe Özel Saatler (Cuma Namazı Vaktine Göre):**")
-            st.caption(f"Cuma Öğle/Namaz Arası: {ogle_arasi_saat_araligi('Cuma')} ({st.session_state.cuma_ogle_dk} dk)")
-            zil_listesi_cuma = zil_saatlerini_uret(8, "Cuma")
-            df_zc = pd.DataFrame({"Ders": [f"{i+1}. Ders" for i in range(8)], "Saat": zil_listesi_cuma})
-            st.dataframe(df_zc, use_container_width=True, hide_index=True)
+        zil_listesi = zil_saatlerini_uret(8)
+        ogle_ders_no = int(st.session_state.ogle_arasi_ders)
+        
+        st.markdown("**☀️ Öğleden Önceki Dersler:**")
+        cols_sabah = st.columns(ogle_ders_no)
+        for i in range(ogle_ders_no):
+            with cols_sabah[i]:
+                st.metric(f"{i+1}. Ders", zil_listesi[i])
+        
+        st.markdown(f"""
+        <div style="background: rgba(0, 102, 204, 0.08); border: 1.5px dashed #0066cc; border-radius: 8px; padding: 10px 20px; margin: 12px 0; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 700; color: #004c99; font-size: 14px;">🍽️ {ogle_ders_no}. DERSTEN SONRA ÖĞLE ARASI ({st.session_state.ogle_arasi_dk} DAKİKA)</span>
+            <span style="background: #0066cc; color: white; padding: 5px 14px; border-radius: 6px; font-weight: 700; font-size: 13px;">Saat: {ogle_arasi_saat_araligi()}</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        kalan_ders_sayisi = 8 - ogle_ders_no
+        st.markdown("**🌙 Öğleden Sonraki Dersler:**")
+        cols_ogle = st.columns(kalan_ders_sayisi)
+        for idx, i in enumerate(range(ogle_ders_no, 8)):
+            with cols_ogle[idx]:
+                st.metric(f"{i+1}. Ders", zil_listesi[i])
 
 # ----------------------------------------------------
 # TAB 2: ÖĞRETMEN, SINIF & DERS YÖNETİMİ (MAAŞ / EK DERSLİ)
@@ -1646,7 +1650,7 @@ with tab_motor:
                 with col_save_dnd:
                     if st.button(f"💾 {secilen_hoca} Programını Kaydet & Sınıflarla Eşitle", type="primary", use_container_width=True):
                         atamalar = []
-                        # 1. Önce bu öğretmenin eski derslerini sınıfların tablosundan temizle
+                        # 1. Bu öğretmenin eski derslerini sınıflardan temizle
                         for snf in siniflar:
                             for g in GUNLER:
                                 for s in range(st.session_state.gun_saatleri[g]):
@@ -1662,7 +1666,6 @@ with tab_motor:
                                     snf_kod = val.split(" (")[0].strip()
                                     drs_ad = val.split(" (")[1].replace(")", "").strip()
                                     atamalar.append((snf_kod, drs_ad, g, s))
-                                    # Sınıf tablosuna anında eşitle
                                     if snf_kod in st.session_state.cozum_sinif:
                                         st.session_state.cozum_sinif[snf_kod][g][s] = f"{drs_ad} ({secilen_hoca})"
 

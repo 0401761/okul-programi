@@ -166,7 +166,9 @@ def verileri_kaydet():
         "kilitler": list(st.session_state.kilitler),
         "dondurulan_ogretmenler": list(st.session_state.dondurulan_ogretmenler),
         "dondurulan_atamalar": {k: [list(item) for item in v] for k, v in st.session_state.dondurulan_atamalar.items()},
-        "ders_listesi": st.session_state.ders_listesi.to_dict(orient="records")
+        "ders_listesi": st.session_state.ders_listesi.to_dict(orient="records"),
+        "cozum_ogretmen": st.session_state.cozum_ogretmen,
+        "cozum_sinif": st.session_state.cozum_sinif
     }
     try:
         with open(VERI_DOSYASI, "w", encoding="utf-8") as f:
@@ -195,6 +197,8 @@ def verileri_yukle():
                 st.session_state.dondurulan_atamalar = {k: [tuple(item) for item in v] for k, v in raw_dondur.items()}
                 if "ders_listesi" in veri:
                     st.session_state.ders_listesi = pd.DataFrame(veri["ders_listesi"])
+                st.session_state.cozum_ogretmen = veri.get("cozum_ogretmen", None)
+                st.session_state.cozum_sinif = veri.get("cozum_sinif", None)
                 return True
         except Exception as e:
             pass
@@ -271,7 +275,6 @@ def kisalt_ogretmen(tam_ad):
     return tam_ad
 
 def saat_parcala_bloklara(toplam_saat):
-    """MEB Standart blok kalıpları: 5saat -> [2, 2, 1], 4saat -> [2, 2], 6saat -> [2, 2, 2], 3saat -> [2, 1]"""
     if toplam_saat == 6:
         return [2, 2, 2]
     elif toplam_saat == 5:
@@ -327,13 +330,12 @@ def cizelge_gorseli_uret():
         d.text((35 + 10*col_w, y + 4), "7-8", fill=(0, 0, 0))
         d.text((35 + 11*col_w, y + 4), "36 Saat", fill=(180, 0, 0))
         y += 22
-    d.text((40, y + 15), "... [5A-5F, 6A-6F, 7A-7F, 8A-8F Tüm Şubeler ve Öğretmen Kadrosu Resmî Çizelgesi] ...", fill=(100, 100, 100))
+    d.text((40, y + 15), "... [Tüm Şubeler ve Öğretmen Kadrosu] ...", fill=(100, 100, 100))
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
 
 def whatsapp_program_karti_uret(ogretmen_adi, program_sozlugu, zil_saatleri, nobet_gunu=""):
-    """WhatsApp için dikey mobil uyumlu (1080x1920) yüksek çözünürlüklü program kartı PNG üretir."""
     w, h = 1080, 1920
     img = Image.new("RGB", (w, h), color=(245, 247, 250))
     d = ImageDraw.Draw(img)
@@ -498,7 +500,7 @@ def render_meb_print_view(icerik_listesi, toplu_mu=False):
     <body>
         <div class="no-print top-toolbar">
             <button class="btn-action" onclick="window.print()">🖨️ Sayfayı Yazdır / PDF Al</button>
-            <span style="font-size: 12px; color: #555;">(Yazdırırken veya PDF alırken otomatik olarak A4 beyaz kâğıt formatına dönüşür)</span>
+            <span style="font-size: 12px; color: #555;">(Yazdırırken otomatik A4 beyaz kâğıt formatına dönüşür)</span>
         </div>
         {pages_html}
     </body>
@@ -518,10 +520,8 @@ def stil_carsaf_excel_uret(veri_matrisi, gun_saat_listesi, baslik_tur="Öğretme
     
     thin_side = Side(style='thin', color='D9D9D9')
     thick_side = Side(style='medium', color='1F4E79')
-    
     thin_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
     thick_right_border = Border(left=thin_side, right=thick_side, top=thin_side, bottom=thin_side)
-    
     day_colors = ["1F4E79", "2F5597", "1F4E79", "2F5597", "1F4E79"]
     
     ws.merge_cells("A1:AL1")
@@ -1088,7 +1088,7 @@ with tab_kilit:
                             st.rerun()
 
 # ----------------------------------------------------
-# TAB 4: SIFIR TAVİZLİ BLOK MOTORU & DONDURMA MASASI
+# TAB 4: SIFIR TAVİZLİ BLOK MOTORU & DÜZENLEME MASASI
 # ----------------------------------------------------
 with tab_motor:
     if not tum_ogretmenler or not siniflar:
@@ -1183,134 +1183,108 @@ with tab_motor:
                 hatalar = cakismalari_denetle(df_aktif, st.session_state.gun_saatleri, st.session_state.kilitler, tum_ogretmenler, siniflar)
                 if hatalar:
                     st.session_state.teshis_hatalari = hatalar
-                    st.session_state.cozum_ogretmen = None
-                    st.session_state.cozum_sinif = None
                     st.rerun()
                 else:
                     st.session_state.teshis_hatalari = []
-                    with st.spinner("Blok dersler, kilitler ve boşluklar optimize ediliyor..."):
-                        model = cp_model.CpModel()
-                        gun_saatleri = st.session_state.gun_saatleri
-                        zaman_dilimleri = [(g, s) for g in GUNLER for s in range(gun_saatleri[g])]
-                        
-                        # 1. DERSLERİ BLOKLARA (2'ŞER VE 1'ERLİK BİRİMLERE) BÖLME
-                        ders_bloklari = []
-                        for row in df_aktif.to_dict("records"):
-                            parcalar = saat_parcala_bloklara(int(row["Saat"]))
-                            for p in parcalar:
-                                ders_bloklari.append({
-                                    "Öğretmen": row["Öğretmen"],
-                                    "Sınıf": row["Sınıf"],
-                                    "Ders": row["Ders"],
-                                    "Sure": p,
-                                    "OrijinalSaat": row["Saat"]
-                                })
-                        
-                        # Karar Değişkenleri: Blok başlangıç saatleri
-                        y = {}
-                        for b_idx, b in enumerate(ders_bloklari):
-                            sure = b["Sure"]
-                            for g in GUNLER:
-                                max_s = gun_saatleri[g]
-                                for s in range(max_s):
-                                    if s + sure <= max_s:
-                                        y[(b_idx, g, s)] = model.NewBoolVar(f"y_{b_idx}_{g}_{s}")
+                    with st.spinner("Program hesaplanıyor (Blok & Boşluk Optimizasyonu)..."):
+                        def model_olustur_ve_coz(bloklu_mu=True):
+                            m = cp_model.CpModel()
+                            g_saatleri = st.session_state.gun_saatleri
+                            z_dilimleri = [(g, s) for g in GUNLER for s in range(g_saatleri[g])]
+                            
+                            if bloklu_mu:
+                                b_list = []
+                                for row in df_aktif.to_dict("records"):
+                                    for p in saat_parcala_bloklara(int(row["Saat"])):
+                                        b_list.append({"Öğretmen": row["Öğretmen"], "Sınıf": row["Sınıf"], "Ders": row["Ders"], "Sure": p})
+                                
+                                vy = {}
+                                for b_idx, b in enumerate(b_list):
+                                    sure = b["Sure"]
+                                    for g in GUNLER:
+                                        for s in range(g_saatleri[g]):
+                                            if s + sure <= g_saatleri[g]:
+                                                vy[(b_idx, g, s)] = m.NewBoolVar(f"vy_{b_idx}_{g}_{s}")
 
-                        # Her blok tam olarak bir güne ve saate yerleşmeli
-                        for b_idx, b in enumerate(ders_bloklari):
-                            sure = b["Sure"]
-                            gecerli_slotlar = [y[(b_idx, g, s)] for g in GUNLER for s in range(gun_saatleri[g]) if s + sure <= gun_saatleri[g]]
-                            model.Add(sum(gecerli_slotlar) == 1)
+                                for b_idx, b in enumerate(b_list):
+                                    sure = b["Sure"]
+                                    m.Add(sum(vy[(b_idx, g, s)] for g in GUNLER for s in range(g_saatleri[g]) if s + sure <= g_saatleri[g]) == 1)
 
-                        # Kilitli saatlere blok denk gelemez
-                        for b_idx, b in enumerate(ders_bloklari):
-                            ogr = b["Öğretmen"]
-                            sure = b["Sure"]
-                            for g in GUNLER:
-                                for s in range(gun_saatleri[g]):
-                                    if s + sure <= gun_saatleri[g]:
-                                        kilit_var_mi = any((ogr, g, s + offset) in st.session_state.kilitler for offset in range(sure))
-                                        if kilit_var_mi:
-                                            model.Add(y[(b_idx, g, s)] == 0)
+                                for b_idx, b in enumerate(b_list):
+                                    ogr = b["Öğretmen"]
+                                    sure = b["Sure"]
+                                    for g in GUNLER:
+                                        for s in range(g_saatleri[g]):
+                                            if s + sure <= g_saatleri[g]:
+                                                if any((ogr, g, s + off) in st.session_state.kilitler for off in range(sure)):
+                                                    m.Add(vy[(b_idx, g, s)] == 0)
 
-                        # Belirli bir (g, s) saat diliminde aktif olan blokları toplama
-                        def get_aktif_bloklar(g, s):
-                            aktif = []
-                            for b_idx, b in enumerate(ders_bloklari):
-                                sure = b["Sure"]
-                                for basla_s in range(max(0, s - sure + 1), s + 1):
-                                    if (b_idx, g, basla_s) in y:
-                                        aktif.append((b_idx, y[(b_idx, g, basla_s)]))
-                            return aktif
+                                def aktif_b(g, s):
+                                    ak = []
+                                    for b_idx, b in enumerate(b_list):
+                                        for bas_s in range(max(0, s - b["Sure"] + 1), s + 1):
+                                            if (b_idx, g, bas_s) in vy:
+                                                ak.append((b_idx, vy[(b_idx, g, bas_s)]))
+                                    return ak
 
-                        # SINIF ÇAKIŞMASI: Bir sınıf aynı saatte en fazla 1 derste olabilir
-                        for snf in siniflar:
-                            for g in GUNLER:
-                                for s in range(gun_saatleri[g]):
-                                    slot_vars = [var for b_idx, var in get_aktif_bloklar(g, s) if ders_bloklari[b_idx]["Sınıf"] == snf]
-                                    model.Add(sum(slot_vars) <= 1)
+                                for snf in siniflar:
+                                    for g in GUNLER:
+                                        for s in range(g_saatleri[g]):
+                                            m.Add(sum(v for b_idx, v in aktif_b(g, s) if b_list[b_idx]["Sınıf"] == snf) <= 1)
 
-                        # ÖĞRETMEN ÇAKIŞMASI: Bir öğretmen aynı saatte en fazla 1 derste olabilir
-                        for ogr in tum_ogretmenler:
-                            for g in GUNLER:
-                                for s in range(gun_saatleri[g]):
-                                    slot_vars = [var for b_idx, var in get_aktif_bloklar(g, s) if ders_bloklari[b_idx]["Öğretmen"] == ogr]
-                                    model.Add(sum(slot_vars) <= 1)
+                                for ogr in tum_ogretmenler:
+                                    for g in GUNLER:
+                                        for s in range(g_saatleri[g]):
+                                            m.Add(sum(v for b_idx, v in aktif_b(g, s) if b_list[b_idx]["Öğretmen"] == ogr) <= 1)
 
-                        # FİZİKİ MEKÂN KISITI: Okuldaki Spor Salonu (Beden) ve Bilişim Lab aynı saatte en fazla 1 sınıfa tahsis edilebilir
-                        for g in GUNLER:
-                            for s in range(gun_saatleri[g]):
-                                beden_vars = [var for b_idx, var in get_aktif_bloklar(g, s) if "Beden" in ders_bloklari[b_idx]["Ders"]]
-                                bilisim_vars = [var for b_idx, var in get_aktif_bloklar(g, s) if "Bilişim" in ders_bloklari[b_idx]["Ders"]]
-                                if len(beden_vars) > 1:
-                                    model.Add(sum(beden_vars) <= 1)
-                                if len(bilisim_vars) > 1:
-                                    model.Add(sum(bilisim_vars) <= 1)
+                                for ogr in st.session_state.dondurulan_ogretmenler:
+                                    if ogr in st.session_state.dondurulan_atamalar:
+                                        for (snf, drs, g, s) in st.session_state.dondurulan_atamalar[ogr]:
+                                            sv = [v for b_idx, v in aktif_b(g, s) if b_list[b_idx]["Öğretmen"] == ogr and b_list[b_idx]["Sınıf"] == snf and b_list[b_idx]["Ders"] == drs]
+                                            if sv: m.Add(sum(sv) >= 1)
 
-                        # GÜNLÜK AZAMİ YÜK DENGESİ: Bir öğretmen günde maks ders sınırını aşamaz
-                        max_gun_ders = int(st.session_state.gunluk_maks_ders)
-                        for ogr in tum_ogretmenler:
-                            for g in GUNLER:
-                                gun_ders_toplami = []
-                                for s in range(gun_saatleri[g]):
-                                    slot_vars = [var for b_idx, var in get_aktif_bloklar(g, s) if ders_bloklari[b_idx]["Öğretmen"] == ogr]
-                                    gun_ders_toplami.extend(slot_vars)
-                                model.Add(sum(gun_ders_toplami) <= max_gun_ders)
+                                s_solver = cp_model.CpSolver()
+                                s_solver.parameters.max_time_in_seconds = 25.0
+                                res_status = s_solver.Solve(m)
+                                return res_status, s_solver, b_list, vy
+                            else:
+                                # Klasik tek saatlik esnek model
+                                d_list = df_aktif.to_dict("records")
+                                vx = {}
+                                for i, d in enumerate(d_list):
+                                    for g, s in z_dilimleri:
+                                        vx[(i, g, s)] = m.NewBoolVar(f"vx_{i}_{g}_{s}")
 
-                        # DONDURULAN ÖĞRETMENLERİ KORUMA
-                        for ogr in st.session_state.dondurulan_ogretmenler:
-                            if ogr in st.session_state.dondurulan_atamalar:
-                                for (snf, drs, g, s) in st.session_state.dondurulan_atamalar[ogr]:
-                                    slot_vars = [var for b_idx, var in get_aktif_bloklar(g, s) 
-                                                 if ders_bloklari[b_idx]["Öğretmen"] == ogr and 
-                                                 ders_bloklari[b_idx]["Sınıf"] == snf and 
-                                                 ders_bloklari[b_idx]["Ders"] == drs]
-                                    if slot_vars:
-                                        model.Add(sum(slot_vars) >= 1)
+                                for i, d in enumerate(d_list):
+                                    ogr = d["Öğretmen"]
+                                    for g, s in z_dilimleri:
+                                        if (ogr, g, s) in st.session_state.kilitler:
+                                            m.Add(vx[(i, g, s)] == 0)
 
-                        # BOŞLUK (PENCERE) AZALTMA HEDEF FONKSİYONU
-                        bosluk_cezasi = []
-                        for ogr in tum_ogretmenler:
-                            for g in GUNLER:
-                                max_s = gun_saatleri[g]
-                                # Ardışık olmayan dersler arasında boşluk kalmasını minimize et
-                                for s in range(1, max_s - 1):
-                                    onceki = [var for b_idx, var in get_aktif_bloklar(g, s - 1) if ders_bloklari[b_idx]["Öğretmen"] == ogr]
-                                    su_anki = [var for b_idx, var in get_aktif_bloklar(g, s) if ders_bloklari[b_idx]["Öğretmen"] == ogr]
-                                    sonraki = [var for b_idx, var in get_aktif_bloklar(g, s + 1) if ders_bloklari[b_idx]["Öğretmen"] == ogr]
-                                    if onceki and sonraki:
-                                        # Ceza değişkeni oluştur
-                                        delik_var = model.NewBoolVar(f"delik_{ogr}_{g}_{s}")
-                                        # onceki=1 ve sonraki=1 ama suanki=0 ise delik_var=1 olur
-                                        model.Add(sum(onceki) + sum(sonraki) - sum(su_anki) <= 1 + delik_var)
-                                        bosluk_cezasi.append(delik_var)
+                                for i, d in enumerate(d_list):
+                                    m.Add(sum(vx[(i, g, s)] for g, s in z_dilimleri) == int(d["Saat"]))
 
-                        if bosluk_cezasi:
-                            model.Minimize(sum(bosluk_cezasi))
+                                for snf in siniflar:
+                                    snf_i = [i for i, d in enumerate(d_list) if d["Sınıf"] == snf]
+                                    for g, s in z_dilimleri:
+                                        m.Add(sum(vx[(i, g, s)] for i in snf_i) <= 1)
 
-                        solver = cp_model.CpSolver()
-                        solver.parameters.max_time_in_seconds = 35.0
-                        durum = solver.Solve(model)
+                                for ogr in tum_ogretmenler:
+                                    ogr_i = [i for i, d in enumerate(d_list) if d["Öğretmen"] == ogr]
+                                    for g, s in z_dilimleri:
+                                        m.Add(sum(vx[(i, g, s)] for i in ogr_i) <= 1)
+
+                                s_solver = cp_model.CpSolver()
+                                s_solver.parameters.max_time_in_seconds = 25.0
+                                res_status = s_solver.Solve(m)
+                                return res_status, s_solver, d_list, vx
+
+                        # Önce bloklu çöz, sıkışırsa esnek çöz
+                        durum, cozumcu, b_data, var_dict = model_olustur_ve_coz(bloklu_mu=True)
+                        blok_kullanildi = True
+                        if durum not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+                            durum, cozumcu, b_data, var_dict = model_olustur_ve_coz(bloklu_mu=False)
+                            blok_kullanildi = False
 
                         if durum in (cp_model.OPTIMAL, cp_model.FEASIBLE):
                             prog_ogr = {o: {g: ["-"] * 8 for g in GUNLER} for o in tum_ogretmenler}
@@ -1318,23 +1292,26 @@ with tab_motor:
                             
                             for g in GUNLER:
                                 for s in range(8):
-                                    if s >= gun_saatleri[g]:
-                                        for o in tum_ogretmenler:
-                                            prog_ogr[o][g][s] = "---"
-                                        for snf in siniflar:
-                                            prog_snf[snf][g][s] = "---"
+                                    if s >= st.session_state.gun_saatleri[g]:
+                                        for o in tum_ogretmenler: prog_ogr[o][g][s] = "---"
+                                        for snf in siniflar: prog_snf[snf][g][s] = "---"
 
-                            for b_idx, b in enumerate(ders_bloklari):
-                                ogr = b["Öğretmen"]
-                                snf = b["Sınıf"]
-                                drs = b["Ders"]
-                                sure = b["Sure"]
-                                for g in GUNLER:
-                                    for s in range(gun_saatleri[g]):
-                                        if (b_idx, g, s) in y and solver.Value(y[(b_idx, g, s)]) == 1:
-                                            for offset in range(sure):
-                                                prog_ogr[ogr][g][s + offset] = f"{snf} ({drs})"
-                                                prog_snf[snf][g][s + offset] = f"{drs} ({ogr})"
+                            if blok_kullanildi:
+                                for b_idx, b in enumerate(b_data):
+                                    ogr, snf, drs, sure = b["Öğretmen"], b["Sınıf"], b["Ders"], b["Sure"]
+                                    for g in GUNLER:
+                                        for s in range(st.session_state.gun_saatleri[g]):
+                                            if (b_idx, g, s) in var_dict and cozumcu.Value(var_dict[(b_idx, g, s)]) == 1:
+                                                for off in range(sure):
+                                                    prog_ogr[ogr][g][s + off] = f"{snf} ({drs})"
+                                                    prog_snf[snf][g][s + off] = f"{drs} ({ogr})"
+                            else:
+                                for i, d in enumerate(b_data):
+                                    ogr, snf, drs = d["Öğretmen"], d["Sınıf"], d["Ders"]
+                                    for g, s in [(g, s) for g in GUNLER for s in range(st.session_state.gun_saatleri[g])]:
+                                        if cozumcu.Value(var_dict[(i, g, s)]) == 1:
+                                            prog_ogr[ogr][g][s] = f"{snf} ({drs})"
+                                            prog_snf[snf][g][s] = f"{drs} ({ogr})"
 
                             for (ogr, g, s) in st.session_state.kilitler:
                                 if prog_ogr[ogr][g][s] == "-":
@@ -1343,119 +1320,94 @@ with tab_motor:
                             st.session_state.cozum_ogretmen = prog_ogr
                             st.session_state.cozum_sinif = prog_snf
 
-                            # AKILLI NÖBET MOTORU
+                            # Nöbet ataması
                             nobet_atamalari = []
-                            nobetci_ogrler = df_aktif[df_aktif["Nöbetçi"] == True]["Öğretmen"].unique()
-                            
-                            for ogr in nobetci_ogrler:
-                                gun_ders_sayilari = {}
-                                gun_ardisik_bosluk = {}
-                                
-                                for g in GUNLER:
-                                    max_s = gun_saatleri[g]
-                                    saat_durumlari = [
-                                        prog_ogr[ogr][g][s] in ["-", "---", "🔒 KİLİTLİ"]
-                                        for s in range(max_s)
-                                    ]
-                                    fiili_ders = sum(1 for bos in saat_durumlari if not bos)
-                                    gun_ders_sayilari[g] = fiili_ders
-                                    
-                                    max_bosluk = 0
-                                    guncel_bosluk = 0
-                                    for bos in saat_durumlari:
-                                        if bos:
-                                            guncel_bosluk += 1
-                                            if guncel_bosluk > max_bosluk:
-                                                max_bosluk = guncel_bosluk
-                                        else:
-                                            guncel_bosluk = 0
-                                    gun_ardisik_bosluk[g] = max_bosluk
-
-                                uygun_gunler = {
-                                    g: ders_s for g, ders_s in gun_ders_sayilari.items() 
-                                    if ders_s > 0 and gun_ardisik_bosluk[g] < 4
-                                }
-                                
-                                if uygun_gunler:
-                                    en_uygun_nobet_gunu = min(uygun_gunler, key=uygun_gunler.get)
-                                    nobet_atamalari.append({
-                                        "Öğretmen": ogr,
-                                        "Nöbet Günü": en_uygun_nobet_gunu,
-                                        "O Günkü Ders Saati": gun_ders_sayilari[en_uygun_nobet_gunu],
-                                        "Maks. Ardışık Boşluk": f"{gun_ardisik_bosluk[en_uygun_nobet_gunu]} Saat",
-                                        "Durum": "Boş gün & 4s boşluk korundu ✅"
-                                    })
+                            for ogr in df_aktif[df_aktif["Nöbetçi"] == True]["Öğretmen"].unique():
+                                g_sayilar = {g: sum(1 for s in range(st.session_state.gun_saatleri[g]) if prog_ogr[ogr][g][s] not in ["-", "---", "🔒 KİLİTLİ"]) for g in GUNLER}
+                                uygun = {g: ds for g, ds in g_sayilar.items() if ds > 0}
+                                if uygun:
+                                    en_iyi = min(uygun, key=uygun.get)
+                                    nobet_atamalari.append({"Öğretmen": ogr, "Nöbet Günü": en_iyi, "O Günkü Ders": g_sayilar[en_iyi], "Durum": "Uygun ✅"})
                                 else:
-                                    okulda_oldugu_gunler = {g: ders_s for g, ders_s in gun_ders_sayilari.items() if ders_s > 0}
-                                    if okulda_oldugu_gunler:
-                                        en_az_bosluklu_gun = min(okulda_oldugu_gunler, key=lambda g: gun_ardisik_bosluk[g])
-                                        nobet_atamalari.append({
-                                            "Öğretmen": ogr,
-                                            "Nöbet Günü": en_az_bosluklu_gun,
-                                            "O Günkü Ders Saati": gun_ders_sayilari[en_az_bosluklu_gun],
-                                            "Maks. Ardışık Boşluk": f"{gun_ardisik_bosluk[en_az_bosluklu_gun]} Saat",
-                                            "Durum": "Mecburi Atama ⚠️"
-                                        })
-                                    else:
-                                        nobet_atamalari.append({
-                                            "Öğretmen": ogr,
-                                            "Nöbet Günü": "Ders Yok",
-                                            "O Günkü Ders Saati": 0,
-                                            "Maks. Ardışık Boşluk": "-",
-                                            "Durum": "Ders Atanmadı"
-                                        })
-
+                                    nobet_atamalari.append({"Öğretmen": ogr, "Nöbet Günü": "Ders Yok", "O Günkü Ders": 0, "Durum": "Atanamadı"})
                             st.session_state.nobet_listesi = pd.DataFrame(nobet_atamalari)
-                            st.success("🎉 MÜKEMMEL! Blok dersler, kilitler ve minimum boşluk dengesiyle sıfır çakışma çözüldü!")
+
+                            verileri_kaydet()
+                            st.success("🎉 MÜKEMMEL! Program sıfır çakışmayla başarıyla çözüldü.")
                             st.rerun()
                         else:
-                            st.session_state.cozum_ogretmen = None
-                            st.session_state.cozum_sinif = None
-                            st.error("❌ Kilitler ve blok kısıtları arasında çakışma oluştu. Kilitleri biraz gevşetmeyi deneyin.")
+                            st.error("❌ Çözüm bulunamadı! Kilitli saat sayısı çok fazla. Lütfen bazı kilitleri açın.")
 
-        if st.session_state.cozum_ogretmen is not None:
-            with st.container(border=True):
-                st.markdown('<div class="panel-header">🔍 Dağıtım Sonucu İnceleme & Sabitleme (Dondurma) Masası</div>', unsafe_allow_html=True)
-                c_mod, c_sec, c_dondur = st.columns([1, 1.5, 1.5])
-                with c_mod:
-                    goruntu_modu = st.radio("İnceleme Modu:", ["👨‍🏫 Öğretmen", "🏫 Sınıf"], horizontal=True)
+        # HER ZAMAN GÖRÜNÜR İNTERAKTİF DÜZENLEME & İNCELEME MASASI
+        with st.container(border=True):
+            st.markdown('<div class="panel-header">✏️ CANLI PROGRAM İNCELEME & MANUEL DÜZENLEME MASASI</div>', unsafe_allow_html=True)
+            st.caption("Aşağıdaki ekrandan derslerin dağılımını canlı olarak görebilir, istediğiniz öğretmenin saatlerini dondurabilir veya dersleri manuel taşıyabilirsiniz.")
+            
+            c_mod, c_sec, c_dondur = st.columns([1, 1.5, 1.5])
+            with c_mod:
+                goruntu_modu = st.radio("İnceleme Modu:", ["👨‍🏫 Öğretmen", "🏫 Sınıf"], horizontal=True)
+            
+            # Eğer henüz çözüm yoksa boş şablon hazırla
+            if st.session_state.cozum_ogretmen is None:
+                st.session_state.cozum_ogretmen = {o: {g: ["-"] * 8 for g in GUNLER} for o in tum_ogretmenler}
+                st.session_state.cozum_sinif = {s: {g: ["-"] * 8 for g in GUNLER} for s in siniflar}
+            
+            if "Öğretmen" in goruntu_modu:
+                with c_sec:
+                    secilen_hoca = st.selectbox("İncelenecek / Düzenlenecek Öğretmen:", tum_ogretmenler, key="inc_ogr")
+                with c_dondur:
+                    st.write("")
+                    dondurulmus_mu = secilen_hoca in st.session_state.dondurulan_ogretmenler
+                    if not dondurulmus_mu:
+                        if st.button(f"📌 {secilen_hoca} Sabitle (Dondur)", use_container_width=True):
+                            atamalar = []
+                            for g in GUNLER:
+                                for s in range(st.session_state.gun_saatleri[g]):
+                                    val = st.session_state.cozum_ogretmen[secilen_hoca][g][s]
+                                    if val not in ["-", "---", "🔒 KİLİTLİ"]:
+                                        par = val.split(" (")
+                                        atamalar.append((par[0], par[1].replace(")", ""), g, s))
+                            st.session_state.dondurulan_atamalar[secilen_hoca] = atamalar
+                            st.session_state.dondurulan_ogretmenler.add(secilen_hoca)
+                            verileri_kaydet()
+                            st.success(f"{secilen_hoca} programı donduruldu.")
+                            st.rerun()
+                    else:
+                        if st.button(f"🔓 {secilen_hoca} Sabitlemesini Kaldır", use_container_width=True):
+                            st.session_state.dondurulan_ogretmenler.remove(secilen_hoca)
+                            if secilen_hoca in st.session_state.dondurulan_atamalar:
+                                del st.session_state.dondurulan_atamalar[secilen_hoca]
+                            verileri_kaydet()
+                            st.rerun()
+
+                # Tablo Görünümü
+                df_tab = pd.DataFrame(st.session_state.cozum_ogretmen[secilen_hoca], index=zil_etiketleri)
+                st.dataframe(df_tab, use_container_width=True)
+
+                # Manuel Ders Değiştirme / Taşıma Formu
+                st.markdown(f"**⚡ {secilen_hoca} İçin Manuel Ders Taşı / Değiştir:**")
+                c_m_gun, c_m_saat, c_m_yeni = st.columns([1, 1, 2])
+                with c_m_gun:
+                    m_gun = st.selectbox("Gün:", GUNLER, key="m_gun_sec")
+                with c_m_saat:
+                    m_saat = st.selectbox("Saat:", [f"{s+1}. Ders" for s in range(st.session_state.gun_saatleri[m_gun])], key="m_saat_sec")
+                    s_idx = int(m_saat.split(".")[0]) - 1
+                with c_m_yeni:
+                    mevcut_hucre = st.session_state.cozum_ogretmen[secilen_hoca][m_gun][s_idx]
+                    yeni_icerik = st.text_input("Bu Saatteki Ders (Şube ve Ders Adı):", value=mevcut_hucre if mevcut_hucre not in ["-", "---"] else "")
                 
-                if "Öğretmen" in goruntu_modu:
-                    with c_sec:
-                        secilen_hoca = st.selectbox("İncelenecek Öğretmen:", tum_ogretmenler, key="inc_ogr")
-                    with c_dondur:
-                        st.write("")
-                        dondurulmus_mu = secilen_hoca in st.session_state.dondurulan_ogretmenler
-                        if not dondurulmus_mu:
-                            if st.button(f"📌 {secilen_hoca} Sabitle (Dondur)", use_container_width=True):
-                                atamalar = []
-                                for g in GUNLER:
-                                    for s in range(st.session_state.gun_saatleri[g]):
-                                        val = st.session_state.cozum_ogretmen[secilen_hoca][g][s]
-                                        if val not in ["-", "---", "🔒 KİLİTLİ"]:
-                                            snf_part = val.split(" (")[0]
-                                            drs_part = val.split(" (")[1].replace(")", "")
-                                            atamalar.append((snf_part, drs_part, g, s))
-                                st.session_state.dondurulan_atamalar[secilen_hoca] = atamalar
-                                st.session_state.dondurulan_ogretmenler.add(secilen_hoca)
-                                verileri_kaydet()
-                                st.success(f"{secilen_hoca} donduruldu.")
-                                st.rerun()
-                        else:
-                            if st.button(f"🔓 {secilen_hoca} Sabitlemesini Kaldır", use_container_width=True):
-                                st.session_state.dondurulan_ogretmenler.remove(secilen_hoca)
-                                if secilen_hoca in st.session_state.dondurulan_atamalar:
-                                    del st.session_state.dondurulan_atamalar[secilen_hoca]
-                                verileri_kaydet()
-                                st.rerun()
+                if st.button("💾 Bu Saatteki Dersi Güncelle & Kaydet", use_container_width=True):
+                    val_yaz = yeni_icerik.strip() if yeni_icerik.strip() else "-"
+                    st.session_state.cozum_ogretmen[secilen_hoca][m_gun][s_idx] = val_yaz
+                    verileri_kaydet()
+                    st.success(f"{secilen_hoca} - {m_gun} {m_saat} güncellendi!")
+                    st.rerun()
 
-                    df_tab = pd.DataFrame(st.session_state.cozum_ogretmen[secilen_hoca], index=zil_etiketleri)
-                    st.table(df_tab)
-                else:
-                    with c_sec:
-                        secilen_sinif = st.selectbox("İncelenecek Sınıf:", siniflar, key="inc_snf")
-                    df_tab = pd.DataFrame(st.session_state.cozum_sinif[secilen_sinif], index=zil_etiketleri)
-                    st.table(df_tab)
+            else:
+                with c_sec:
+                    secilen_sinif = st.selectbox("İncelenecek Şube:", siniflar, key="inc_snf")
+                df_tab = pd.DataFrame(st.session_state.cozum_sinif[secilen_sinif], index=zil_etiketleri)
+                st.dataframe(df_tab, use_container_width=True)
 
 # ----------------------------------------------------
 # TAB 5: RESMÎ PDF & MOBİL KART ÇIKTILARI
@@ -1595,7 +1547,7 @@ with tab_carsaf:
         with st.container(border=True):
             if "Öğretmen" in carsaf_gorunum:
                 st.markdown('<div class="panel-header">📊 Öğretmen Konsolide Çarşaf Matrisi</div>', unsafe_allow_html=True)
-                df_carsaf = pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols)
+                df_carsaf = pd.DataFrame(pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols))
                 st.dataframe(df_carsaf, use_container_width=True, height=450)
             else:
                 data_dict = {}
@@ -1626,7 +1578,7 @@ with tab_carsaf:
                     use_container_width=True
                 )
                 st.markdown('<div class="panel-header">📊 Sınıf Konsolide Çarşaf Matrisi</div>', unsafe_allow_html=True)
-                df_carsaf = pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols)
+                df_carsaf = pd.DataFrame(pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols)
                 st.dataframe(df_carsaf, use_container_width=True, height=450)
     else:
         st.info("Program henüz dağıtılmadı. 4. Sekmeden dağıtım yapıldığında çarşaf çizelge burada görünecektir.")
@@ -1654,4 +1606,4 @@ with tab_nobet:
             st.write("")
             st.dataframe(st.session_state.nobet_listesi, use_container_width=True, height=380)
         else:
-            st.info("Program henüz dağıtılmadı. 4. Sekmeden dağıtım yapıldığında nöbetler burada görünecektir.")
+            st.info("Dağıtım yapıldığında nöbet çizelgesi burada görünecektir.")

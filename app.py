@@ -170,7 +170,7 @@ def varsayilan_iho_verisi():
                 })
     return pd.DataFrame(rows)
 
-# TÜM STATE'LERİ GARANTİYLE BAŞLAT
+# TÜM STATE'LERİ BOŞ VEYA VARSAYILAN OLARAK BAŞLAT (OTOMATİK ÖRNEK LİSTE YOK)
 if "okul_adi" not in st.session_state:
     st.session_state.okul_adi = "İMAM HATİP ORTAOKULU"
 if "egitim_yili" not in st.session_state:
@@ -206,7 +206,8 @@ if "teshis_hatalari" not in st.session_state:
 if "nobet_listesi" not in st.session_state:
     st.session_state.nobet_listesi = None
 if "ders_listesi" not in st.session_state:
-    st.session_state.ders_listesi = varsayilan_iho_verisi()
+    # İLK AÇILIŞTA TERTEMİZ BOŞ TABLO (Örnek veriler otomatik yüklenmez!)
+    st.session_state.ders_listesi = pd.DataFrame(columns=["Öğretmen", "Sınıf", "Ders", "Saat", "Nöbetçi"])
 
 def verileri_kaydet():
     veri = {
@@ -269,7 +270,7 @@ if not st.session_state.get("dosyadan_okundu_mu", False):
     st.session_state.dosyadan_okundu_mu = True
 
 # TUM_OGRETMENLER VE SINIFLAR SEKMEDEN ÖNCE TANIMLI
-df_aktif = st.session_state.ders_listesi[st.session_state.ders_listesi["Saat"] > 0]
+df_aktif = st.session_state.ders_listesi[st.session_state.ders_listesi["Saat"] > 0] if not st.session_state.ders_listesi.empty else pd.DataFrame(columns=["Öğretmen", "Sınıf", "Ders", "Saat", "Nöbetçi"])
 tum_ogretmenler = sorted(list(df_aktif["Öğretmen"].unique())) if not df_aktif.empty else []
 siniflar = sorted(list(df_aktif["Sınıf"].unique())) if not df_aktif.empty else []
 
@@ -289,7 +290,7 @@ def kisalt_ders(ders_adi):
     for k, v in DERS_KISALTMALARI.items():
         if k.lower() in ders_adi.lower():
             return v
-    return ders_adi[:3].upper()
+    return str(ders_adi)[:3].upper()
 
 def kisalt_ogretmen(tam_ad):
     parcalar = str(tam_ad).strip().split()
@@ -327,33 +328,14 @@ def cizelge_gorseli_uret():
     img = Image.new("RGB", (w, h), color=(255, 255, 255))
     d = ImageDraw.Draw(img)
     d.rectangle([(20, 20), (w-20, 85)], fill=(235, 243, 250), outline=(0, 51, 102), width=2)
-    d.text((40, 28), "T.C. MILLI EGITIM BAKANLIGI - IMAM HATIP ORTAOKULU", fill=(0, 51, 102))
-    d.text((40, 52), "HAFTALIK DERS DAGITIM CIZELGESI (24 SUBE: 5A-8F | TOPLAM: 864 SAAT)", fill=(60, 60, 60))
+    d.text((40, 28), "T.C. MILLI EGITIM BAKANLIGI - OKUL MUDURLUGU", fill=(0, 51, 102))
+    d.text((40, 52), "HAFTALIK DERS DAGITIM CIZELGESI", fill=(60, 60, 60))
     headers = ["Sube", "TRK", "MAT", "FEN", "SOS", "ING", "DKAB", "KURAN", "PEYG", "ARAP", "DIGER", "TOPLAM"]
     col_w = (w - 60) // len(headers)
     y = 100
     d.rectangle([(30, y), (w-30, y+28)], fill=(200, 220, 240), outline=(0, 0, 0))
     for i, h_text in enumerate(headers):
         d.text((35 + i * col_w, y + 7), h_text, fill=(0, 0, 0))
-    classes = [f"{g}{s}" for g in [5, 6, 7, 8] for s in ["A", "B", "C", "D", "E", "F"]]
-    y += 28
-    for idx, c in enumerate(classes[:16]):
-        bg = (248, 249, 250) if idx % 2 == 0 else (255, 255, 255)
-        d.rectangle([(30, y), (w-30, y+22)], fill=bg, outline=(220, 220, 220))
-        d.text((35, y + 4), c, fill=(0, 0, 0))
-        d.text((35 + col_w, y + 4), "6" if c.startswith(('5','6')) else "5", fill=(0, 0, 0))
-        d.text((35 + 2*col_w, y + 4), "5", fill=(0, 0, 0))
-        d.text((35 + 3*col_w, y + 4), "4", fill=(0, 0, 0))
-        d.text((35 + 4*col_w, y + 4), "3" if not c.startswith('8') else "2", fill=(0, 0, 0))
-        d.text((35 + 5*col_w, y + 4), "3" if c.startswith(('5','6')) else "4", fill=(0, 0, 0))
-        d.text((35 + 6*col_w, y + 4), "2", fill=(0, 0, 0))
-        d.text((35 + 7*col_w, y + 4), "2", fill=(0, 0, 0))
-        d.text((35 + 8*col_w, y + 4), "2", fill=(0, 0, 0))
-        d.text((35 + 9*col_w, y + 4), "2", fill=(0, 0, 0))
-        d.text((35 + 10*col_w, y + 4), "7-8", fill=(0, 0, 0))
-        d.text((35 + 11*col_w, y + 4), "36 Saat", fill=(180, 0, 0))
-        y += 22
-    d.text((40, y + 15), "... [Tüm Şubeler ve Öğretmen Kadrosu] ...", fill=(100, 100, 100))
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
@@ -468,9 +450,6 @@ def ogle_arasi_saat_araligi():
 
 zil_etiketleri = [f"{i+1}. Ders\n({saat})" for i, saat in enumerate(zil_saatlerini_uret(8))]
 
-# ========================================================
-# RESMÎ ZİL VE GİRİŞ-ÇIKIŞ ÇİZELGESİ İÇİN EXCEL MOTORU
-# ========================================================
 def zil_cizelgesi_verisi_olustur():
     saat_araliklari = zil_saatlerini_uret(8)
     d_dk = int(st.session_state.get("ders_dk", 40))
@@ -560,7 +539,6 @@ def stil_zil_excel_uret(df_zil, okul_adi, mudur_adi, egitim_yili):
         for c in [c1, c2, c3, c4, c5]:
             c.border = thin_border
             
-    # İmza alanı
     sig_row = len(df_zil) + 7
     ws.cell(row=sig_row, column=4, value="Uygundur").font = Font(name="Calibri", size=10, bold=True)
     ws.cell(row=sig_row+1, column=4, value=f"{mudur_adi}").font = Font(name="Calibri", size=10, bold=True)
@@ -876,7 +854,7 @@ tab_okul, tab_kisi_ders, tab_kilit, tab_motor, tab_pdf, tab_carsaf, tab_nobet = 
 ])
 
 # ----------------------------------------------------
-# TAB 1: OKUL KÜNYESİ VE ZİL SAATLERİ (YENİ RESMÎ TABLO & EXCEL)
+# TAB 1: OKUL KÜNYESİ VE ZİL SAATLERİ
 # ----------------------------------------------------
 with tab_okul:
     with st.container(border=True):
@@ -944,7 +922,6 @@ with tab_okul:
                         st.session_state.teneffus_sureleri[t_idx] = yeni_ten
                         verileri_kaydet()
 
-    # YENİLENEN RESMÎ ÇİZELGE VE VELİ/OKUL İNDİRME ALANI
     with st.container(border=True):
         st.markdown('<div class="panel-header">📋 OLUŞTURULAN GÜNLÜK RESMÎ DERS GİRİŞ - ÇIKIŞ VE ZİL ÇİZELGESİ</div>', unsafe_allow_html=True)
         st.caption("📌 Okul panosuna asılabilecek ve velilerle paylaşılabilecek resmî zil ve ders saatleri tablosudur.")
@@ -973,7 +950,7 @@ with tab_okul:
         st.dataframe(df_zil_cizelgesi, use_container_width=True, hide_index=True)
 
 # ----------------------------------------------------
-# TAB 2: ÖĞRETMEN, SINIF & DERS YÖNETİMİ (MAAŞ / EK DERSLİ)
+# TAB 2: ÖĞRETMEN, SINIF & DERS YÖNETİMİ
 # ----------------------------------------------------
 with tab_kisi_ders:
     with st.container(border=True):
@@ -1187,51 +1164,43 @@ with tab_kisi_ders:
             with c_f_up:
                 yuklenen_belge = st.file_uploader("Çizelge Görseli Seç (PNG, JPG, JPEG)", type=["png", "jpg", "jpeg"], key="belge_ocr_up")
             with c_f_api:
-                api_anahtari = st.text_input("Gemini API Anahtarı (Opsiyonel):", type="password", placeholder="AIzaSy...")
+                api_anahtari = st.text_input("Gemini API Anahtarı:", type="password", placeholder="AIzaSy...")
 
-            if yuklenen_belge is not None:
+            if yuklenen_belge is not None and api_anahtari.strip():
                 if st.button("🔍 Fotoğrafı Tara ve Sisteme Aktar", type="primary", use_container_width=True):
-                    with st.spinner("Görsel taranıyor..."):
-                        basarili = False
-                        if api_anahtari.strip():
-                            try:
-                                gorsel_bytes = yuklenen_belge.getvalue()
-                                b64_img = base64.b64encode(gorsel_bytes).decode("utf-8")
-                                mime_t = yuklenen_belge.type or "image/jpeg"
-                                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_anahtari.strip()}"
-                                prompt_metni = "Bu görseldeki ders çizelgesini analiz et. SADECE JSON ver: [{\"Öğretmen\": \"...\", \"Sınıf\": \"...\", \"Ders\": \"...\", \"Saat\": 4, \"Nöbet\": \"Evet\"}]"
-                                payload = {"contents": [{"parts": [{"text": prompt_metni}, {"inline_data": {"mime_type": mime_t, "data": b64_img}}]}]}
-                                res = requests.post(url, json=payload, timeout=35)
-                                if res.status_code == 200:
-                                    raw_cevap = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-                                    if raw_cevap.startswith("```"):
-                                        raw_cevap = raw_cevap.split("```")[1]
-                                        if raw_cevap.startswith("json"):
-                                            raw_cevap = raw_cevap[4:]
-                                    parsed_data = json.loads(raw_cevap.strip())
-                                    df_ocr = pd.DataFrame(parsed_data)
-                                    df_ocr["Nöbetçi"] = df_ocr.get("Nöbet", "Evet").astype(str).str.lower().isin(["evet", "true", "1"])
-                                    st.session_state.ders_listesi = df_ocr[["Öğretmen", "Sınıf", "Ders", "Saat", "Nöbetçi"]]
-                                    verileri_kaydet()
-                                    st.success("🎉 Fotoğraf başarıyla aktarıldı!")
-                                    basarili = True
-                                    st.rerun()
-                            except Exception as ex:
-                                st.warning(f"AI okuma hatası: {ex}. Dahili şablon motoruna geçiliyor...")
-                        
-                        if not basarili:
-                            st.session_state.ders_listesi = varsayilan_iho_verisi()
-                            st.session_state.kilitler = set()
-                            verileri_kaydet()
-                            st.success("🎉 Görsel başarıyla okundu! 24 Şube, 40 Öğretmen aktarıldı.")
-                            st.rerun()
+                    with st.spinner("Yapay zekâ görseli okuyor..."):
+                        try:
+                            gorsel_bytes = yuklenen_belge.getvalue()
+                            b64_img = base64.b64encode(gorsel_bytes).decode("utf-8")
+                            mime_t = yuklenen_belge.type or "image/jpeg"
+                            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_anahtari.strip()}"
+                            prompt_metni = "Bu görseldeki ders çizelgesini analiz et. SADECE saf JSON formatında dizi ver, başka hiçbir açıklama yazma: [{\"Öğretmen\": \"...\", \"Sınıf\": \"...\", \"Ders\": \"...\", \"Saat\": 4, \"Nöbet\": \"Evet\"}]"
+                            payload = {"contents": [{"parts": [{"text": prompt_metni}, {"inline_data": {"mime_type": mime_t, "data": b64_img}}]}]}
+                            res = requests.post(url, json=payload, timeout=40)
+                            if res.status_code == 200:
+                                raw_cevap = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                                if raw_cevap.startswith("```"):
+                                    raw_cevap = raw_cevap.split("```")[1]
+                                    if raw_cevap.startswith("json"):
+                                        raw_cevap = raw_cevap[4:]
+                                parsed_data = json.loads(raw_cevap.strip())
+                                df_ocr = pd.DataFrame(parsed_data)
+                                df_ocr["Nöbetçi"] = df_ocr.get("Nöbet", "Evet").astype(str).str.lower().isin(["evet", "true", "1"])
+                                st.session_state.ders_listesi = df_ocr[["Öğretmen", "Sınıf", "Ders", "Saat", "Nöbetçi"]]
+                                verileri_kaydet()
+                                st.success("🎉 Fotoğraf başarıyla yapay zekâ tarafından taranıp aktarıldı!")
+                                st.rerun()
+                            else:
+                                st.error(f"API Hatası: {res.status_code} - Lütfen anahtarınızı kontrol edin.")
+                        except Exception as ex:
+                            st.error(f"Okuma hatası: {ex}")
 
 # ----------------------------------------------------
 # TAB 3: GÜNE ÖZEL KİLİT MATRİSİ
 # ----------------------------------------------------
 with tab_kilit:
     if not tum_ogretmenler:
-        st.warning("⚠️ Lütfen önce 2. Sekmeden öğretmen ve ders atamalarını girin.")
+        st.warning("⚠️ Lütfen önce 2. Sekmeden öğretmen ve ders atamalarını girin (veya örnek veri yükleyin).")
     else:
         with st.container(border=True):
             st.markdown('<div class="panel-header">🎯 1. Öğretmen ve Hedef Gün Seçimi</div>', unsafe_allow_html=True)
@@ -1603,7 +1572,7 @@ with tab_motor:
                             aralik = max(dolu_saatler) - min(dolu_saatler) + 1
                             toplam_bosluk_saati += (aralik - len(dolu_saatler))
                 
-                hedef_ders = int(df_aktif["Saat"].sum())
+                hedef_ders = int(df_aktif["Saat"].sum()) if not df_aktif.empty else 1
                 basari_yuzdesi = round((toplam_atanan / max(1, hedef_ders)) * 100, 1)
                 
                 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
@@ -1632,167 +1601,169 @@ with tab_motor:
                 st.session_state.cozum_sinif = {s: {g: ["-"] * 8 for g in GUNLER} for s in siniflar}
 
             if "Öğretmen" in goruntu_modu:
-                with c_sec:
-                    secilen_hoca = st.selectbox("Düzenlenecek Öğretmen:", tum_ogretmenler, key="inc_ogr")
-                with c_dondur:
-                    st.write("")
-                    dondurulmus_mu = secilen_hoca in st.session_state.dondurulan_ogretmenler
-                    if not dondurulmus_mu:
-                        if st.button(f"📌 {secilen_hoca} Sabitle (Dondur)", use_container_width=True):
+                if tum_ogretmenler:
+                    with c_sec:
+                        secilen_hoca = st.selectbox("Düzenlenecek Öğretmen:", tum_ogretmenler, key="inc_ogr")
+                    with c_dondur:
+                        st.write("")
+                        dondurulmus_mu = secilen_hoca in st.session_state.dondurulan_ogretmenler
+                        if not dondurulmus_mu:
+                            if st.button(f"📌 {secilen_hoca} Sabitle (Dondur)", use_container_width=True):
+                                atamalar = []
+                                for g in GUNLER:
+                                    for s in range(st.session_state.gun_saatleri[g]):
+                                        val = st.session_state.cozum_ogretmen[secilen_hoca][g][s]
+                                        if val not in ["-", "---", "🔒 KİLİTLİ"]:
+                                            par = val.split(" (")
+                                            atamalar.append((par[0], par[1].replace(")", ""), g, s))
+                                st.session_state.dondurulan_atamalar[secilen_hoca] = atamalar
+                                st.session_state.dondurulan_ogretmenler.add(secilen_hoca)
+                                verileri_kaydet()
+                                st.success(f"{secilen_hoca} programı donduruldu.")
+                                st.rerun()
+                        else:
+                            if st.button(f"🔓 {secilen_hoca} Sabitlemesini Kaldır", use_container_width=True):
+                                st.session_state.dondurulan_ogretmenler.remove(secilen_hoca)
+                                if secilen_hoca in st.session_state.dondurulan_atamalar:
+                                    del st.session_state.dondurulan_atamalar[secilen_hoca]
+                                verileri_kaydet()
+                                st.rerun()
+
+                    hoca_prog = st.session_state.cozum_ogretmen[secilen_hoca]
+                    zil_araliklari = zil_saatlerini_uret(8)
+
+                    table_rows_html = ""
+                    for s in range(8):
+                        z_txt = zil_araliklari[s] if s < len(zil_araliklari) else ""
+                        table_rows_html += f"<tr><td class='time-th'><b>{s+1}. Ders</b><br><small>{z_txt}</small></td>"
+                        for g in GUNLER:
+                            val = hoca_prog.get(g, ["-"]*8)[s]
+                            cell_id = f"cell_{g}_{s}"
+                            if val == "🔒 KİLİTLİ":
+                                table_rows_html += f"<td class='slot locked' id='{cell_id}' data-gun='{g}' data-saat='{s}'>🔒 Kilitli</td>"
+                            elif val in ["-", "---"]:
+                                table_rows_html += f"<td class='slot empty' id='{cell_id}' data-gun='{g}' data-saat='{s}' ondragover='allowDrop(event)' ondrop='drop(event)'><span class='empty-label'>-</span></td>"
+                            else:
+                                table_rows_html += f"""
+                                <td class='slot occupied' id='{cell_id}' data-gun='{g}' data-saat='{s}' ondragover='allowDrop(event)' ondrop='drop(event)'>
+                                    <div class='card-item' draggable='true' ondragstart='drag(event)' id='card_{g}_{s}'>
+                                        <b>{val}</b>
+                                    </div>
+                                </td>
+                                """
+                        table_rows_html += "</tr>"
+
+                    dnd_html = f"""
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                    <style>
+                        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 10px; background: transparent; }}
+                        .dnd-table {{ width: 100%; border-collapse: separate; border-spacing: 6px; }}
+                        .dnd-table th {{ background: linear-gradient(135deg, #0052cc 0%, #0066cc 100%); color: white; padding: 11px; border-radius: 8px; font-size: 13.8px; font-weight: 700; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }}
+                        .time-th {{ background: rgba(128, 128, 128, 0.1); border-radius: 8px; padding: 6px; text-align: center; font-size: 12px; color: #444; width: 110px; }}
+                        .slot {{ min-width: 140px; height: 54px; border-radius: 8px; border: 1.5px dashed #cbd5e1; text-align: center; vertical-align: middle; padding: 4px; background: rgba(255,255,255,0.4); }}
+                        .slot.empty {{ border-color: #cbd5e1; }}
+                        .slot.locked {{ background: #f1f5f9; border-style: solid; border-color: #cbd5e1; color: #94a3b8; font-size: 11.5px; font-weight: 600; }}
+                        .card-item {{ background: #e0f2fe; color: #0369a1; border: 1.5px solid #0284c7; border-radius: 6px; padding: 8px 6px; font-size: 13px; font-weight: 700; cursor: grab; user-select: none; box-shadow: 0 2px 5px rgba(0,0,0,0.06); transition: all 0.15s; }}
+                        .card-item:hover {{ background: #bae6fd; transform: scale(1.02); }}
+                        .card-item:active {{ cursor: grabbing; opacity: 0.6; }}
+                        .empty-label {{ color: #cbd5e1; font-size: 16px; font-weight: bold; }}
+                    </style>
+                    <script>
+                        let dragSrcEl = null;
+
+                        function drag(e) {{
+                            dragSrcEl = e.target.parentElement;
+                            e.dataTransfer.setData('text/html', e.target.outerHTML);
+                            e.dataTransfer.setData('source_gun', dragSrcEl.getAttribute('data-gun'));
+                            e.dataTransfer.setData('source_saat', dragSrcEl.getAttribute('data-saat'));
+                        }}
+
+                        function allowDrop(e) {{
+                            e.preventDefault();
+                        }}
+
+                        function drop(e) {{
+                            e.preventDefault();
+                            let targetSlot = e.target.closest('.slot');
+                            if (!targetSlot || targetSlot.classList.contains('locked')) return;
+
+                            let srcGun = e.dataTransfer.getData('source_gun');
+                            let srcSaat = e.dataTransfer.getData('source_saat');
+                            let destGun = targetSlot.getAttribute('data-gun');
+                            let destSaat = targetSlot.getAttribute('data-saat');
+
+                            if (srcGun === destGun && srcSaat === destSaat) return;
+
+                            let srcCard = dragSrcEl.innerHTML;
+                            let destCard = targetSlot.innerHTML;
+
+                            dragSrcEl.innerHTML = destCard;
+                            targetSlot.innerHTML = srcCard;
+                        }}
+                    </script>
+                    </head>
+                    <body>
+                        <table class="dnd-table">
+                            <thead>
+                                <tr>
+                                    <th>Saat / Ders</th>
+                                    <th>Pazartesi</th>
+                                    <th>Salı</th>
+                                    <th>Çarşamba</th>
+                                    <th>Perşembe</th>
+                                    <th>Cuma</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {table_rows_html}
+                            </tbody>
+                        </table>
+                    </body>
+                    </html>
+                    """
+
+                    components.html(dnd_html, height=540, scrolling=True)
+
+                    col_save_dnd, col_info_dnd = st.columns([1.6, 2.4])
+                    with col_save_dnd:
+                        if st.button(f"💾 {secilen_hoca} Programını Kaydet & Sınıflarla Eşitle", type="primary", use_container_width=True):
                             atamalar = []
+                            for snf in siniflar:
+                                for g in GUNLER:
+                                    for s in range(st.session_state.gun_saatleri[g]):
+                                        v = st.session_state.cozum_sinif[snf][g][s]
+                                        if f"({secilen_hoca})" in v:
+                                            st.session_state.cozum_sinif[snf][g][s] = "-"
+
                             for g in GUNLER:
                                 for s in range(st.session_state.gun_saatleri[g]):
                                     val = st.session_state.cozum_ogretmen[secilen_hoca][g][s]
-                                    if val not in ["-", "---", "🔒 KİLİTLİ"]:
-                                        par = val.split(" (")
-                                        atamalar.append((par[0], par[1].replace(")", ""), g, s))
+                                    if val not in ["-", "---", "🔒 KİLİTLİ"] and " (" in val:
+                                        snf_kod = val.split(" (")[0].strip()
+                                        drs_ad = val.split(" (")[1].replace(")", "").strip()
+                                        atamalar.append((snf_kod, drs_ad, g, s))
+                                        if snf_kod in st.session_state.cozum_sinif:
+                                            st.session_state.cozum_sinif[snf_kod][g][s] = f"{drs_ad} ({secilen_hoca})"
+
                             st.session_state.dondurulan_atamalar[secilen_hoca] = atamalar
                             st.session_state.dondurulan_ogretmenler.add(secilen_hoca)
                             verileri_kaydet()
-                            st.success(f"{secilen_hoca} programı donduruldu.")
+                            st.success(f"✅ {secilen_hoca} programı kilitlendi ve ilgili sınıflarla çift taraflı eşitlendi!")
                             st.rerun()
-                    else:
-                        if st.button(f"🔓 {secilen_hoca} Sabitlemesini Kaldır", use_container_width=True):
-                            st.session_state.dondurulan_ogretmenler.remove(secilen_hoca)
-                            if secilen_hoca in st.session_state.dondurulan_atamalar:
-                                del st.session_state.dondurulan_atamalar[secilen_hoca]
-                            verileri_kaydet()
-                            st.rerun()
-
-                hoca_prog = st.session_state.cozum_ogretmen[secilen_hoca]
-                zil_araliklari = zil_saatlerini_uret(8)
-
-                table_rows_html = ""
-                for s in range(8):
-                    z_txt = zil_araliklari[s] if s < len(zil_araliklari) else ""
-                    table_rows_html += f"<tr><td class='time-th'><b>{s+1}. Ders</b><br><small>{z_txt}</small></td>"
-                    for g in GUNLER:
-                        val = hoca_prog.get(g, ["-"]*8)[s]
-                        cell_id = f"cell_{g}_{s}"
-                        if val == "🔒 KİLİTLİ":
-                            table_rows_html += f"<td class='slot locked' id='{cell_id}' data-gun='{g}' data-saat='{s}'>🔒 Kilitli</td>"
-                        elif val in ["-", "---"]:
-                            table_rows_html += f"<td class='slot empty' id='{cell_id}' data-gun='{g}' data-saat='{s}' ondragover='allowDrop(event)' ondrop='drop(event)'><span class='empty-label'>-</span></td>"
-                        else:
-                            table_rows_html += f"""
-                            <td class='slot occupied' id='{cell_id}' data-gun='{g}' data-saat='{s}' ondragover='allowDrop(event)' ondrop='drop(event)'>
-                                <div class='card-item' draggable='true' ondragstart='drag(event)' id='card_{g}_{s}'>
-                                    <b>{val}</b>
-                                </div>
-                            </td>
-                            """
-                    table_rows_html += "</tr>"
-
-                dnd_html = f"""
-                <!DOCTYPE html>
-                <html>
-                <head>
-                <style>
-                    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 10px; background: transparent; }}
-                    .dnd-table {{ width: 100%; border-collapse: separate; border-spacing: 6px; }}
-                    .dnd-table th {{ background: linear-gradient(135deg, #0052cc 0%, #0066cc 100%); color: white; padding: 11px; border-radius: 8px; font-size: 13.8px; font-weight: 700; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }}
-                    .time-th {{ background: rgba(128, 128, 128, 0.1); border-radius: 8px; padding: 6px; text-align: center; font-size: 12px; color: #444; width: 110px; }}
-                    .slot {{ min-width: 140px; height: 54px; border-radius: 8px; border: 1.5px dashed #cbd5e1; text-align: center; vertical-align: middle; padding: 4px; background: rgba(255,255,255,0.4); }}
-                    .slot.empty {{ border-color: #cbd5e1; }}
-                    .slot.locked {{ background: #f1f5f9; border-style: solid; border-color: #cbd5e1; color: #94a3b8; font-size: 11.5px; font-weight: 600; }}
-                    .card-item {{ background: #e0f2fe; color: #0369a1; border: 1.5px solid #0284c7; border-radius: 6px; padding: 8px 6px; font-size: 13px; font-weight: 700; cursor: grab; user-select: none; box-shadow: 0 2px 5px rgba(0,0,0,0.06); transition: all 0.15s; }}
-                    .card-item:hover {{ background: #bae6fd; transform: scale(1.02); }}
-                    .card-item:active {{ cursor: grabbing; opacity: 0.6; }}
-                    .empty-label {{ color: #cbd5e1; font-size: 16px; font-weight: bold; }}
-                </style>
-                <script>
-                    let dragSrcEl = null;
-
-                    function drag(e) {{
-                        dragSrcEl = e.target.parentElement;
-                        e.dataTransfer.setData('text/html', e.target.outerHTML);
-                        e.dataTransfer.setData('source_gun', dragSrcEl.getAttribute('data-gun'));
-                        e.dataTransfer.setData('source_saat', dragSrcEl.getAttribute('data-saat'));
-                    }}
-
-                    function allowDrop(e) {{
-                        e.preventDefault();
-                    }}
-
-                    function drop(e) {{
-                        e.preventDefault();
-                        let targetSlot = e.target.closest('.slot');
-                        if (!targetSlot || targetSlot.classList.contains('locked')) return;
-
-                        let srcGun = e.dataTransfer.getData('source_gun');
-                        let srcSaat = e.dataTransfer.getData('source_saat');
-                        let destGun = targetSlot.getAttribute('data-gun');
-                        let destSaat = targetSlot.getAttribute('data-saat');
-
-                        if (srcGun === destGun && srcSaat === destSaat) return;
-
-                        let srcCard = dragSrcEl.innerHTML;
-                        let destCard = targetSlot.innerHTML;
-
-                        dragSrcEl.innerHTML = destCard;
-                        targetSlot.innerHTML = srcCard;
-                    }}
-                </script>
-                </head>
-                <body>
-                    <table class="dnd-table">
-                        <thead>
-                            <tr>
-                                <th>Saat / Ders</th>
-                                <th>Pazartesi</th>
-                                <th>Salı</th>
-                                <th>Çarşamba</th>
-                                <th>Perşembe</th>
-                                <th>Cuma</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {table_rows_html}
-                        </tbody>
-                    </table>
-                </body>
-                </html>
-                """
-
-                components.html(dnd_html, height=540, scrolling=True)
-
-                # SÜRÜKLE-BIRAK DEĞİŞİKLİKLERİNİ SINIFLA EŞİTLEYEREK SABİTLE
-                col_save_dnd, col_info_dnd = st.columns([1.6, 2.4])
-                with col_save_dnd:
-                    if st.button(f"💾 {secilen_hoca} Programını Kaydet & Sınıflarla Eşitle", type="primary", use_container_width=True):
-                        atamalar = []
-                        # 1. Bu öğretmenin eski derslerini sınıflardan temizle
-                        for snf in siniflar:
-                            for g in GUNLER:
-                                for s in range(st.session_state.gun_saatleri[g]):
-                                    v = st.session_state.cozum_sinif[snf][g][s]
-                                    if f"({secilen_hoca})" in v:
-                                        st.session_state.cozum_sinif[snf][g][s] = "-"
-
-                        # 2. Öğretmenin matrisini topla ve sınıflara çift yönlü yaz
-                        for g in GUNLER:
-                            for s in range(st.session_state.gun_saatleri[g]):
-                                val = st.session_state.cozum_ogretmen[secilen_hoca][g][s]
-                                if val not in ["-", "---", "🔒 KİLİTLİ"] and " (" in val:
-                                    snf_kod = val.split(" (")[0].strip()
-                                    drs_ad = val.split(" (")[1].replace(")", "").strip()
-                                    atamalar.append((snf_kod, drs_ad, g, s))
-                                    if snf_kod in st.session_state.cozum_sinif:
-                                        st.session_state.cozum_sinif[snf_kod][g][s] = f"{drs_ad} ({secilen_hoca})"
-
-                        st.session_state.dondurulan_atamalar[secilen_hoca] = atamalar
-                        st.session_state.dondurulan_ogretmenler.add(secilen_hoca)
-                        verileri_kaydet()
-                        st.success(f"✅ {secilen_hoca} programı kilitlendi ve ilgili sınıflarla çift taraflı eşitlendi!")
-                        st.rerun()
-                with col_info_dnd:
-                    st.caption("💡 Masada yaptığınız değişiklikleri bu butona basarak kaydettiğinizde, hem öğretmenin hem de ilgili şubelerin programı anında senkronize olur ve dağıtımlarda yeri asla bozulmaz.")
-
+                    with col_info_dnd:
+                        st.caption("💡 Masada yaptığınız değişiklikleri bu butona basarak kaydettiğinizde, hem öğretmenin hem de ilgili şubelerin programı anında senkronize olur ve dağıtımlarda yeri asla bozulmaz.")
+                else:
+                    st.info("⚠️ Önce 2. Sekmeden öğretmen ve şube ekleyin.")
             else:
-                with c_sec:
-                    secilen_sinif = st.selectbox("İncelenecek Şube:", siniflar, key="inc_snf")
-                df_tab = pd.DataFrame(st.session_state.cozum_sinif[secilen_sinif], index=zil_etiketleri)
-                st.dataframe(df_tab, use_container_width=True)
+                if siniflar:
+                    with c_sec:
+                        secilen_sinif = st.selectbox("İncelenecek Şube:", siniflar, key="inc_snf")
+                    df_tab = pd.DataFrame(st.session_state.cozum_sinif[secilen_sinif], index=zil_etiketleri)
+                    st.dataframe(df_tab, use_container_width=True)
+                else:
+                    st.info("⚠️ Önce 2. Sekmeden şube ekleyin.")
 
 # ----------------------------------------------------
 # TAB 5: RESMÎ PDF & MOBİL KART (WHATSAPP LİNKLİ)

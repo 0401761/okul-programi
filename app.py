@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 import pandas as pd
 from ortools.sat.python import cp_model
 from datetime import datetime, timedelta
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
@@ -520,10 +520,8 @@ def stil_carsaf_excel_uret(veri_matrisi, gun_saat_listesi, baslik_tur="Öğretme
     
     thin_side = Side(style='thin', color='D9D9D9')
     thick_side = Side(style='medium', color='1F4E79')
-    
     thin_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
     thick_right_border = Border(left=thin_side, right=thick_side, top=thin_side, bottom=thin_side)
-    
     day_colors = ["1F4E79", "2F5597", "1F4E79", "2F5597", "1F4E79"]
     
     ws.merge_cells("A1:AL1")
@@ -561,9 +559,6 @@ def stil_carsaf_excel_uret(veri_matrisi, gun_saat_listesi, baslik_tur="Öğretme
             
         cur_col = end_col + 1
         
-    ws.row_dimensions[2].height = 22
-    ws.row_dimensions[3].height = 20
-    
     for r_idx, (r_name, r_vals) in enumerate(veri_matrisi.items(), start=4):
         ws.row_dimensions[r_idx].height = 20
         c1 = ws.cell(row=r_idx, column=1, value=r_name)
@@ -1090,7 +1085,7 @@ with tab_kilit:
                             st.rerun()
 
 # ----------------------------------------------------
-# TAB 4: SIFIR TAVİZLİ BLOK MOTORU & DÜZENLEME MASASI
+# TAB 4: SIFIR TAVİZLİ BLOK MOTORU & SÜRÜKLE-BIRAK DÜZENLEME MASASI
 # ----------------------------------------------------
 with tab_motor:
     if not tum_ogretmenler or not siniflar:
@@ -1337,10 +1332,12 @@ with tab_motor:
                         else:
                             st.error("❌ Çözüm bulunamadı! Kilitli saat sayısı çok fazla. Lütfen bazı kilitleri açın.")
 
-        # HER ZAMAN GÖRÜNÜR İNTERAKTİF DÜZENLEME & İNCELEME MASASI
+        # ==========================================
+        # INTERAKTİF SÜRÜKLE-BIRAK (DRAG & DROP) MASASI
+        # ==========================================
         with st.container(border=True):
-            st.markdown('<div class="panel-header">✏️ CANLI PROGRAM İNCELEME & MANUEL DÜZENLEME MASASI</div>', unsafe_allow_html=True)
-            st.caption("Aşağıdaki ekrandan derslerin dağılımını canlı olarak görebilir, istediğiniz öğretmenin saatlerini dondurabilir veya dersleri manuel taşıyabilirsiniz.")
+            st.markdown('<div class="panel-header">🖱️ CANLI İNTERAKTİF SÜRÜKLE-BIRAK (DRAG & DROP) MASASI</div>', unsafe_allow_html=True)
+            st.caption("Ders kartını farenin sol tuşuyla tutup başka bir saat dilimine sürükleyip bırakabilirsiniz. Bıraktığınız yerde ders varsa otomatik yer değiştirirler (Swap).")
             
             c_mod, c_sec, c_dondur = st.columns([1, 1.5, 1.5])
             with c_mod:
@@ -1349,10 +1346,10 @@ with tab_motor:
             if st.session_state.cozum_ogretmen is None:
                 st.session_state.cozum_ogretmen = {o: {g: ["-"] * 8 for g in GUNLER} for o in tum_ogretmenler}
                 st.session_state.cozum_sinif = {s: {g: ["-"] * 8 for g in GUNLER} for s in siniflar}
-            
+
             if "Öğretmen" in goruntu_modu:
                 with c_sec:
-                    secilen_hoca = st.selectbox("İncelenecek / Düzenlenecek Öğretmen:", tum_ogretmenler, key="inc_ogr")
+                    secilen_hoca = st.selectbox("Düzenlenecek Öğretmen:", tum_ogretmenler, key="inc_ogr")
                 with c_dondur:
                     st.write("")
                     dondurulmus_mu = secilen_hoca in st.session_state.dondurulan_ogretmenler
@@ -1378,26 +1375,146 @@ with tab_motor:
                             verileri_kaydet()
                             st.rerun()
 
+                # SÜRÜKLE-BIRAK HTML/JS BİLEŞENİ
+                hoca_prog = st.session_state.cozum_ogretmen[secilen_hoca]
+                zil_araliklari = zil_saatlerini_uret(8)
+
+                table_rows_html = ""
+                for s in range(8):
+                    z_txt = zil_araliklari[s] if s < len(zil_araliklari) else ""
+                    table_rows_html += f"<tr><td class='time-th'><b>{s+1}. Ders</b><br><small>{z_txt}</small></td>"
+                    for g in GUNLER:
+                        val = hoca_prog.get(g, ["-"]*8)[s]
+                        cell_id = f"cell_{g}_{s}"
+                        if val == "🔒 KİLİTLİ":
+                            table_rows_html += f"<td class='slot locked' id='{cell_id}' data-gun='{g}' data-saat='{s}'>🔒 Kilitli</td>"
+                        elif val in ["-", "---"]:
+                            table_rows_html += f"<td class='slot empty' id='{cell_id}' data-gun='{g}' data-saat='{s}' ondragover='allowDrop(event)' ondrop='drop(event)'><span class='empty-label'>-</span></td>"
+                        else:
+                            table_rows_html += f"""
+                            <td class='slot occupied' id='{cell_id}' data-gun='{g}' data-saat='{s}' ondragover='allowDrop(event)' ondrop='drop(event)'>
+                                <div class='card-item' draggable='true' ondragstart='drag(event)' id='card_{g}_{s}'>
+                                    <b>{val}</b>
+                                </div>
+                            </td>
+                            """
+                    table_rows_html += "</tr>"
+
+                dnd_html = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                <style>
+                    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 10px; background: transparent; }}
+                    .dnd-table {{ width: 100%; border-collapse: separate; border-spacing: 6px; }}
+                    .dnd-table th {{ background: #0066cc; color: white; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: 700; text-align: center; }}
+                    .time-th {{ background: rgba(128, 128, 128, 0.1); border-radius: 6px; padding: 6px; text-align: center; font-size: 11px; color: #444; width: 100px; }}
+                    .slot {{ min-width: 130px; height: 50px; border-radius: 8px; border: 1.5px dashed #cbd5e1; text-align: center; vertical-align: middle; padding: 4px; background: rgba(255,255,255,0.4); }}
+                    .slot.empty {{ border-color: #cbd5e1; }}
+                    .slot.locked {{ background: #f1f5f9; border-style: solid; border-color: #cbd5e1; color: #94a3b8; font-size: 11px; font-weight: 600; }}
+                    .card-item {{ background: #e0f2fe; color: #0369a1; border: 1.5px solid #0284c7; border-radius: 6px; padding: 8px 6px; font-size: 12px; font-weight: 700; cursor: grab; user-select: none; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.15s; }}
+                    .card-item:hover {{ background: #bae6fd; transform: scale(1.02); }}
+                    .card-item:active {{ cursor: grabbing; opacity: 0.6; }}
+                    .empty-label {{ color: #cbd5e1; font-size: 16px; font-weight: bold; }}
+                </style>
+                <script>
+                    let dragSrcEl = null;
+
+                    function drag(e) {{
+                        dragSrcEl = e.target.parentElement;
+                        e.dataTransfer.setData('text/html', e.target.outerHTML);
+                        e.dataTransfer.setData('source_gun', dragSrcEl.getAttribute('data-gun'));
+                        e.dataTransfer.setData('source_saat', dragSrcEl.getAttribute('data-saat'));
+                    }}
+
+                    function allowDrop(e) {{
+                        e.preventDefault();
+                    }}
+
+                    function drop(e) {{
+                        e.preventDefault();
+                        let targetSlot = e.target.closest('.slot');
+                        if (!targetSlot || targetSlot.classList.contains('locked')) return;
+
+                        let srcGun = e.dataTransfer.getData('source_gun');
+                        let srcSaat = e.dataTransfer.getData('source_saat');
+                        let destGun = targetSlot.getAttribute('data-gun');
+                        let destSaat = targetSlot.getAttribute('data-saat');
+
+                        if (srcGun === destGun && srcSaat === destSaat) return;
+
+                        // İstemci tarafında görsel Swap
+                        let srcCard = dragSrcEl.innerHTML;
+                        let destCard = targetSlot.innerHTML;
+
+                        dragSrcEl.innerHTML = destCard;
+                        targetSlot.innerHTML = srcCard;
+
+                        // Yeni durumu hazırla ve bildir
+                        window.parent.postMessage({{
+                            type: 'streamlit:setComponentValue',
+                            value: {{
+                                action: 'swap',
+                                src_gun: srcGun,
+                                src_saat: parseInt(srcSaat),
+                                dest_gun: destGun,
+                                dest_saat: parseInt(destSaat)
+                            }}
+                        }}, '*');
+                    }}
+                </script>
+                </head>
+                <body>
+                    <table class="dnd-table">
+                        <thead>
+                            <tr>
+                                <th>Saat / Ders</th>
+                                <th>Pazartesi</th>
+                                <th>Salı</th>
+                                <th>Çarşamba</th>
+                                <th>Perşembe</th>
+                                <th>Cuma</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {table_rows_html}
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+                """
+
+                components.html(dnd_html, height=520, scrolling=True)
+
+                # Canlı Tablo Görünümü
                 df_tab = pd.DataFrame(st.session_state.cozum_ogretmen[secilen_hoca], index=zil_etiketleri)
                 st.dataframe(df_tab, use_container_width=True)
 
-                st.markdown(f"**⚡ {secilen_hoca} İçin Manuel Ders Taşı / Değiştir:**")
-                c_m_gun, c_m_saat, c_m_yeni = st.columns([1, 1, 2])
-                with c_m_gun:
-                    m_gun = st.selectbox("Gün:", GUNLER, key="m_gun_sec")
-                with c_m_saat:
-                    m_saat = st.selectbox("Saat:", [f"{s+1}. Ders" for s in range(st.session_state.gun_saatleri[m_gun])], key="m_saat_sec")
-                    s_idx = int(m_saat.split(".")[0]) - 1
-                with c_m_yeni:
-                    mevcut_hucre = st.session_state.cozum_ogretmen[secilen_hoca][m_gun][s_idx]
-                    yeni_icerik = st.text_input("Bu Saatteki Ders (Şube ve Ders Adı):", value=mevcut_hucre if mevcut_hucre not in ["-", "---"] else "")
-                
-                if st.button("💾 Bu Saatteki Dersi Güncelle & Kaydet", use_container_width=True):
-                    val_yaz = yeni_icerik.strip() if yeni_icerik.strip() else "-"
-                    st.session_state.cozum_ogretmen[secilen_hoca][m_gun][s_idx] = val_yaz
-                    verileri_kaydet()
-                    st.success(f"{secilen_hoca} - {m_gun} {m_saat} güncellendi!")
-                    st.rerun()
+                # Manuel Hızlı Takas & Taşıma Paneli
+                st.markdown(f"**⚡ {secilen_hoca} Programında İki Saatin Yerini Değiştir (Swap / Takas):**")
+                c_sw1, c_sw2, c_sw3, c_sw4, c_sw_btn = st.columns([1, 1, 1, 1, 1.2])
+                with c_sw1:
+                    kaynak_g = st.selectbox("1. Gün:", GUNLER, key="sw_g1")
+                with c_sw2:
+                    kaynak_s = st.selectbox("1. Saat:", [f"{s+1}. Ders" for s in range(st.session_state.gun_saatleri[kaynak_g])], key="sw_s1")
+                    s1_idx = int(kaynak_s.split(".")[0]) - 1
+                with c_sw3:
+                    hedef_g = st.selectbox("2. Gün:", GUNLER, key="sw_g2")
+                with c_sw4:
+                    hedef_s = st.selectbox("2. Saat:", [f"{s+1}. Ders" for s in range(st.session_state.gun_saatleri[hedef_g])], key="sw_s2")
+                    s2_idx = int(hedef_s.split(".")[0]) - 1
+                with c_sw_btn:
+                    st.write("")
+                    if st.button("🔄 Saatleri Takas Et", use_container_width=True):
+                        val1 = st.session_state.cozum_ogretmen[secilen_hoca][kaynak_g][s1_idx]
+                        val2 = st.session_state.cozum_ogretmen[secilen_hoca][hedef_g][s2_idx]
+                        
+                        st.session_state.cozum_ogretmen[secilen_hoca][kaynak_g][s1_idx] = val2
+                        st.session_state.cozum_ogretmen[secilen_hoca][hedef_g][s2_idx] = val1
+                        
+                        verileri_kaydet()
+                        st.success(f"{secilen_hoca}: {kaynak_g} {kaynak_s} ↔ {hedef_g} {hedef_s} yer değiştirdi!")
+                        st.rerun()
 
             else:
                 with c_sec:
@@ -1543,7 +1660,7 @@ with tab_carsaf:
         with st.container(border=True):
             if "Öğretmen" in carsaf_gorunum:
                 st.markdown('<div class="panel-header">📊 Öğretmen Konsolide Çarşaf Matrisi</div>', unsafe_allow_html=True)
-                df_carsaf = pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols)
+                df_carsaf = pd.DataFrame(data_dict, index=multi_cols).T
                 st.dataframe(df_carsaf, use_container_width=True, height=450)
             else:
                 data_dict = {}
@@ -1574,7 +1691,7 @@ with tab_carsaf:
                     use_container_width=True
                 )
                 st.markdown('<div class="panel-header">📊 Sınıf Konsolide Çarşaf Matrisi</div>', unsafe_allow_html=True)
-                df_carsaf = pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols)
+                df_carsaf = pd.DataFrame(data_dict, index=multi_cols).T
                 st.dataframe(df_carsaf, use_container_width=True, height=450)
     else:
         st.info("Program henüz dağıtılmadı. 4. Sekmeden dağıtım yapıldığında çarşaf çizelge burada görünecektir.")
@@ -1602,4 +1719,4 @@ with tab_nobet:
             st.write("")
             st.dataframe(st.session_state.nobet_listesi, use_container_width=True, height=380)
         else:
-            st.info("Dağıtım yapıldığında nöbet çizelgesi burada görünecektir.")
+            st.info("Program henüz dağıtılmadı. 4. Sekmeden dağıtım yapıldığında nöbetler burada görünecektir.")

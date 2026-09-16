@@ -337,7 +337,7 @@ def cizelge_gorseli_uret():
     return buf.getvalue()
 
 # =========================================================================
-# KOMPAKT & ULTRA NET WHATSAPP PROGRAM KARTI MOTORU (850 x 1200 px)
+# GÜVENLİ & HATA VERMEYEN WHATSAPP KART MOTORU (850 x 1200 px)
 # =========================================================================
 def whatsapp_program_karti_uret(ogretmen_adi, program_sozlugu, zil_saatleri, nobet_gunu=""):
     w, h = 850, 1200
@@ -354,9 +354,9 @@ def whatsapp_program_karti_uret(ogretmen_adi, program_sozlugu, zil_saatleri, nob
     
     # Nöbet Rozeti
     if nobet_gunu and nobet_gunu != "Ders Yok":
-        nobet_text = f"🛡️ NÖBET GÜNÜ: {nobet_gunu.upper()}"
-        d.rounded_rectangle([(w - 290, 40), (w - 35, 100)], radius=8, fill=(255, 193, 7), outline=(217, 119, 6), width=2)
-        d.text((w - 275, 60), nobet_text, fill=(30, 41, 59))
+        nobet_text = f"NÖBET: {nobet_gunu.upper()}"
+        d.rectangle([(w - 240, 42), (w - 35, 98)], fill=(255, 193, 7), outline=(217, 119, 6), width=2)
+        d.text((w - 220, 60), nobet_text, fill=(30, 41, 59))
 
     gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"]
     x_offset = 120
@@ -366,7 +366,7 @@ def whatsapp_program_karti_uret(ogretmen_adi, program_sozlugu, zil_saatleri, nob
     # 2. Gün Başlıkları
     for i, g in enumerate(gunler):
         gx = x_offset + i * col_w
-        d.rounded_rectangle([(gx + 3, y_start), (gx + col_w - 3, y_start + 36)], radius=6, fill=(224, 231, 255), outline=(199, 210, 254))
+        d.rectangle([(gx + 3, y_start), (gx + col_w - 3, y_start + 36)], fill=(224, 231, 255), outline=(199, 210, 254), width=1)
         d.text((gx + 18, y_start + 10), g[:3].upper(), fill=(30, 58, 138))
 
     # 3. Satırlar ve Saat Kutuları
@@ -377,7 +377,7 @@ def whatsapp_program_karti_uret(ogretmen_adi, program_sozlugu, zil_saatleri, nob
         saat_aralik = zil_saatleri[s] if s < len(zil_saatleri) else ""
         
         # Saat Sol Etiketi
-        d.rounded_rectangle([(25, y_cur), (x_offset - 8, y_cur + row_h - 6)], radius=6, fill=(241, 245, 249), outline=(203, 213, 225))
+        d.rectangle([(25, y_cur), (x_offset - 8, y_cur + row_h - 6)], fill=(241, 245, 249), outline=(203, 213, 225), width=1)
         d.text((36, y_cur + 22), f"{s+1}. Ders", fill=(30, 41, 59))
         d.text((30, y_cur + 55), saat_aralik, fill=(100, 116, 139))
         
@@ -389,7 +389,7 @@ def whatsapp_program_karti_uret(ogretmen_adi, program_sozlugu, zil_saatleri, nob
             box_coords = [(cell_x + 3, y_cur), (cell_x + col_w - 3, y_cur + row_h - 6)]
             
             if val not in ["-", "---", "🔒 KİLİTLİ"]:
-                d.rounded_rectangle(box_coords, radius=8, fill=(238, 246, 255), outline=(14, 116, 144), width=1.5)
+                d.rectangle(box_coords, fill=(238, 246, 255), outline=(14, 116, 144), width=2)
                 parcalar = val.split(" (")
                 snf_txt = parcalar[0].strip()
                 drs_txt = parcalar[1].replace(")", "").strip() if len(parcalar) > 1 else ""
@@ -398,15 +398,15 @@ def whatsapp_program_karti_uret(ogretmen_adi, program_sozlugu, zil_saatleri, nob
                 d.text((cell_x + 16, y_cur + 16), snf_txt, fill=(3, 105, 161))
                 d.text((cell_x + 16, y_cur + 54), kisalt_ders(drs_txt), fill=(194, 65, 12))
             elif val == "🔒 KİLİTLİ":
-                d.rounded_rectangle(box_coords, radius=8, fill=(241, 245, 249), outline=(226, 232, 240))
+                d.rectangle(box_coords, fill=(241, 245, 249), outline=(226, 232, 240), width=1)
                 d.text((cell_x + 18, y_cur + 42), "🔒 BOŞ", fill=(148, 163, 184))
             else:
-                d.rounded_rectangle(box_coords, radius=8, fill=(255, 255, 255), outline=(226, 232, 240))
+                d.rectangle(box_coords, fill=(255, 255, 255), outline=(226, 232, 240), width=1)
                 d.text((cell_x + 45, y_cur + 42), "-", fill=(203, 213, 225))
 
         y_cur += row_h
 
-    # 4. Alt Bilgi / Onay Çubuğu
+    # 4. Alt Bilgi
     d.line([(25, h - 90), (w - 25, h - 90)], fill=(226, 232, 240), width=1)
     d.text((35, h - 70), f"Onaylayan: {st.session_state.mudur_adi} (Okul Müdürü)", fill=(71, 85, 105))
     d.text((35, h - 45), f"T.C. MEB • {st.session_state.egitim_yili}", fill=(148, 163, 184))
@@ -545,8 +545,10 @@ def stil_carsaf_excel_uret(veri_matrisi, gun_saat_listesi, baslik_tur="Öğretme
     
     thin_side = Side(style='thin', color='D9D9D9')
     thick_side = Side(style='medium', color='1F4E79')
+    
     thin_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
     thick_right_border = Border(left=thin_side, right=thick_side, top=thin_side, bottom=thin_side)
+    
     day_colors = ["1F4E79", "2F5597", "1F4E79", "2F5597", "1F4E79"]
     
     ws.merge_cells("A1:AL1")
@@ -584,6 +586,9 @@ def stil_carsaf_excel_uret(veri_matrisi, gun_saat_listesi, baslik_tur="Öğretme
             
         cur_col = end_col + 1
         
+    ws.row_dimensions[2].height = 22
+    ws.row_dimensions[3].height = 20
+    
     for r_idx, (r_name, r_vals) in enumerate(veri_matrisi.items(), start=4):
         ws.row_dimensions[r_idx].height = 20
         c1 = ws.cell(row=r_idx, column=1, value=r_name)
@@ -1543,7 +1548,7 @@ with tab_pdf:
         # ==========================================
         with st.container(border=True):
             st.markdown('<div class="panel-header">📱 WHATSAPP İÇİN MOBİL ÖĞRETMEN KARTLARI (PNG / RESİM)</div>', unsafe_allow_html=True)
-            st.caption("Telefon ekranlarına özel optimize edilmiş yüksek kaliteli PNG kartları. Zoom yapmadan tüm hafta net görünür.")
+            st.caption("Telefon ekranlarına özel optimize edilmiş yüksek kaliteli PNG kartları (850x1200 px). Zoom yapmadan tüm hafta net görünür.")
             
             c_mob_tek, c_mob_toplu = st.columns(2)
             
@@ -1574,7 +1579,6 @@ with tab_pdf:
                 st.markdown("**📦 Tüm Kadroyu Toplu Paket Olarak İndir:**")
                 st.caption(f"Okuldaki tüm ({len(tum_ogretmenler)}) öğretmen için kartları tek seferde ZIP arşivi yapar.")
                 
-                # Tüm öğretmen kartlarını bellekte ZIP haline getirme
                 zip_buffer = io.BytesIO()
                 with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
                     zil_v = zil_saatlerini_uret(8)
@@ -1703,7 +1707,7 @@ with tab_carsaf:
         with st.container(border=True):
             if "Öğretmen" in carsaf_gorunum:
                 st.markdown('<div class="panel-header">📊 Öğretmen Konsolide Çarşaf Matrisi</div>', unsafe_allow_html=True)
-                df_carsaf = pd.DataFrame(data_dict, index=multi_cols).T
+                df_carsaf = pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols)
                 st.dataframe(df_carsaf, use_container_width=True, height=450)
             else:
                 data_dict = {}
@@ -1734,7 +1738,7 @@ with tab_carsaf:
                     use_container_width=True
                 )
                 st.markdown('<div class="panel-header">📊 Sınıf Konsolide Çarşaf Matrisi</div>', unsafe_allow_html=True)
-                df_carsaf = pd.DataFrame(data_dict, index=multi_cols).T
+                df_carsaf = pd.DataFrame.from_dict(data_dict, orient='index', columns=multi_cols)
                 st.dataframe(df_carsaf, use_container_width=True, height=450)
     else:
         st.info("Program henüz dağıtılmadı. 4. Sekmeden dağıtım yapıldığında çarşaf çizelge burada görünecektir.")
@@ -1762,4 +1766,4 @@ with tab_nobet:
             st.write("")
             st.dataframe(st.session_state.nobet_listesi, use_container_width=True, height=380)
         else:
-            st.info("Dağıtım yapıldığında nöbet çizelgesi burada görünecektir.")
+            st.info("Program henüz dağıtılmadı. 4. Sekmeden dağıtım yapıldığında nöbetler burada görünecektir.")

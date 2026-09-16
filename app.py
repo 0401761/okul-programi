@@ -12,6 +12,7 @@ import base64
 import json
 import os
 import io
+import zipfile
 
 st.set_page_config(page_title="Akıllı Okul Ders Dağıtım & Yönetim Sistemi", layout="wide")
 
@@ -335,59 +336,83 @@ def cizelge_gorseli_uret():
     img.save(buf, format="PNG")
     return buf.getvalue()
 
+# =========================================================================
+# KOMPAKT & ULTRA NET WHATSAPP PROGRAM KARTI MOTORU (850 x 1200 px)
+# =========================================================================
 def whatsapp_program_karti_uret(ogretmen_adi, program_sozlugu, zil_saatleri, nobet_gunu=""):
-    w, h = 1080, 1920
-    img = Image.new("RGB", (w, h), color=(245, 247, 250))
+    w, h = 850, 1200
+    img = Image.new("RGB", (w, h), color=(248, 250, 252))
     d = ImageDraw.Draw(img)
     
-    d.rectangle([(0, 0), (w, 240)], fill=(0, 76, 153))
-    d.text((50, 45), st.session_state.okul_adi.upper(), fill=(255, 255, 255))
-    d.text((50, 95), "HAFTALIK ÖĞRETMEN DERS PROGRAMI", fill=(200, 225, 255))
-    d.text((50, 145), f"Sayın: {ogretmen_adi}", fill=(255, 255, 255))
-    if nobet_gunu:
-        d.text((50, 190), f"🛡️ Nöbet Günü: {nobet_gunu}", fill=(255, 215, 0))
+    # 1. Header (Kurumsal Üst Bar)
+    d.rectangle([(0, 0), (w, 140)], fill=(0, 76, 153))
+    d.rectangle([(0, 140), (w, 144)], fill=(0, 102, 204))
+    
+    d.text((35, 20), st.session_state.okul_adi.upper(), fill=(255, 255, 255))
+    d.text((35, 48), "HAFTALIK DERS PROGRAMI", fill=(190, 220, 255))
+    d.text((35, 82), f"Öğretmen: {ogretmen_adi}", fill=(255, 255, 255))
+    
+    # Nöbet Rozeti
+    if nobet_gunu and nobet_gunu != "Ders Yok":
+        nobet_text = f"🛡️ NÖBET GÜNÜ: {nobet_gunu.upper()}"
+        d.rounded_rectangle([(w - 290, 40), (w - 35, 100)], radius=8, fill=(255, 193, 7), outline=(217, 119, 6), width=2)
+        d.text((w - 275, 60), nobet_text, fill=(30, 41, 59))
 
     gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"]
-    col_w = (w - 180) // 5
-    y_start = 280
+    x_offset = 120
+    col_w = (w - x_offset - 25) // 5
+    y_start = 165
     
-    d.rectangle([(40, y_start), (w-40, y_start + 60)], fill=(220, 230, 242))
-    d.text((50, y_start + 18), "Ders", fill=(0, 51, 102))
+    # 2. Gün Başlıkları
     for i, g in enumerate(gunler):
-        d.text((180 + i * col_w + 15, y_start + 18), g[:3], fill=(0, 51, 102))
-        
-    y_cur = y_start + 60
+        gx = x_offset + i * col_w
+        d.rounded_rectangle([(gx + 3, y_start), (gx + col_w - 3, y_start + 36)], radius=6, fill=(224, 231, 255), outline=(199, 210, 254))
+        d.text((gx + 18, y_start + 10), g[:3].upper(), fill=(30, 58, 138))
+
+    # 3. Satırlar ve Saat Kutuları
+    y_cur = y_start + 45
+    row_h = 105
+    
     for s in range(8):
-        bg = (255, 255, 255) if s % 2 == 0 else (240, 244, 248)
-        row_h = 160
-        d.rectangle([(40, y_cur), (w-40, y_cur + row_h)], fill=bg, outline=(210, 215, 220))
-        
         saat_aralik = zil_saatleri[s] if s < len(zil_saatleri) else ""
-        d.text((50, y_cur + 40), f"{s+1}.Ders", fill=(0, 0, 0))
-        d.text((50, y_cur + 85), saat_aralik, fill=(100, 100, 100))
         
+        # Saat Sol Etiketi
+        d.rounded_rectangle([(25, y_cur), (x_offset - 8, y_cur + row_h - 6)], radius=6, fill=(241, 245, 249), outline=(203, 213, 225))
+        d.text((36, y_cur + 22), f"{s+1}. Ders", fill=(30, 41, 59))
+        d.text((30, y_cur + 55), saat_aralik, fill=(100, 116, 139))
+        
+        # Günlük Hücreler (Bağımsız Kartlar)
         for g_idx, g in enumerate(gunler):
-            cell_x = 180 + g_idx * col_w
+            cell_x = x_offset + g_idx * col_w
             val = program_sozlugu.get(g, ["-"] * 8)[s]
+            
+            box_coords = [(cell_x + 3, y_cur), (cell_x + col_w - 3, y_cur + row_h - 6)]
+            
             if val not in ["-", "---", "🔒 KİLİTLİ"]:
-                d.rectangle([(cell_x + 5, y_cur + 15), (cell_x + col_w - 5, y_cur + row_h - 15)], fill=(225, 240, 255), outline=(0, 102, 204), width=2)
+                d.rounded_rectangle(box_coords, radius=8, fill=(238, 246, 255), outline=(14, 116, 144), width=1.5)
                 parcalar = val.split(" (")
-                snf_txt = parcalar[0]
-                drs_txt = parcalar[1].replace(")", "") if len(parcalar) > 1 else ""
-                d.text((cell_x + 15, y_cur + 35), snf_txt, fill=(0, 51, 102))
-                d.text((cell_x + 15, y_cur + 80), kisalt_ders(drs_txt), fill=(180, 50, 0))
+                snf_txt = parcalar[0].strip()
+                drs_txt = parcalar[1].replace(")", "").strip() if len(parcalar) > 1 else ""
+                
+                # Sınıf ve Ders Metinleri
+                d.text((cell_x + 16, y_cur + 16), snf_txt, fill=(3, 105, 161))
+                d.text((cell_x + 16, y_cur + 54), kisalt_ders(drs_txt), fill=(194, 65, 12))
             elif val == "🔒 KİLİTLİ":
-                d.text((cell_x + 15, y_cur + 60), "🔒 BOŞ", fill=(160, 160, 160))
+                d.rounded_rectangle(box_coords, radius=8, fill=(241, 245, 249), outline=(226, 232, 240))
+                d.text((cell_x + 18, y_cur + 42), "🔒 BOŞ", fill=(148, 163, 184))
             else:
-                d.text((cell_x + 35, y_cur + 60), "-", fill=(180, 180, 180))
+                d.rounded_rectangle(box_coords, radius=8, fill=(255, 255, 255), outline=(226, 232, 240))
+                d.text((cell_x + 45, y_cur + 42), "-", fill=(203, 213, 225))
 
         y_cur += row_h
 
-    d.text((50, y_cur + 40), f"Onaylayan: {st.session_state.mudur_adi} (Okul Müdürü)", fill=(60, 60, 60))
-    d.text((50, y_cur + 75), f"{st.session_state.egitim_yili} Resmî Çizelgesidir.", fill=(120, 120, 120))
+    # 4. Alt Bilgi / Onay Çubuğu
+    d.line([(25, h - 90), (w - 25, h - 90)], fill=(226, 232, 240), width=1)
+    d.text((35, h - 70), f"Onaylayan: {st.session_state.mudur_adi} (Okul Müdürü)", fill=(71, 85, 105))
+    d.text((35, h - 45), f"T.C. MEB • {st.session_state.egitim_yili}", fill=(148, 163, 184))
     
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
+    img.save(buf, format="PNG", optimize=True)
     return buf.getvalue()
 
 def zil_saatlerini_uret(toplam_saat=8):
@@ -1375,7 +1400,6 @@ with tab_motor:
                             verileri_kaydet()
                             st.rerun()
 
-                # SÜRÜKLE-BIRAK HTML/JS BİLEŞENİ
                 hoca_prog = st.session_state.cozum_ogretmen[secilen_hoca]
                 zil_araliklari = zil_saatlerini_uret(8)
 
@@ -1443,24 +1467,11 @@ with tab_motor:
 
                         if (srcGun === destGun && srcSaat === destSaat) return;
 
-                        // İstemci tarafında görsel Swap
                         let srcCard = dragSrcEl.innerHTML;
                         let destCard = targetSlot.innerHTML;
 
                         dragSrcEl.innerHTML = destCard;
                         targetSlot.innerHTML = srcCard;
-
-                        // Yeni durumu hazırla ve bildir
-                        window.parent.postMessage({{
-                            type: 'streamlit:setComponentValue',
-                            value: {{
-                                action: 'swap',
-                                src_gun: srcGun,
-                                src_saat: parseInt(srcSaat),
-                                dest_gun: destGun,
-                                dest_saat: parseInt(destSaat)
-                            }}
-                        }}, '*');
                     }}
                 </script>
                 </head>
@@ -1486,11 +1497,9 @@ with tab_motor:
 
                 components.html(dnd_html, height=520, scrolling=True)
 
-                # Canlı Tablo Görünümü
                 df_tab = pd.DataFrame(st.session_state.cozum_ogretmen[secilen_hoca], index=zil_etiketleri)
                 st.dataframe(df_tab, use_container_width=True)
 
-                # Manuel Hızlı Takas & Taşıma Paneli
                 st.markdown(f"**⚡ {secilen_hoca} Programında İki Saatin Yerini Değiştir (Swap / Takas):**")
                 c_sw1, c_sw2, c_sw3, c_sw4, c_sw_btn = st.columns([1, 1, 1, 1, 1.2])
                 with c_sw1:
@@ -1529,18 +1538,24 @@ with tab_pdf:
     if st.session_state.cozum_sinif is None:
         st.warning("⚠️ Lütfen önce 4. Sekmeye gidip 'Programı Dağıt' butonuna basın.")
     else:
+        # ==========================================
+        # 1. WHATSAPP MOBİL KART (TEKİL & TOPLU ZIP)
+        # ==========================================
         with st.container(border=True):
-            st.markdown('<div class="panel-header">📱 WHATSAPP UYUMLU MOBİL ÖĞRETMEN KARTI (RESİM / PNG)</div>', unsafe_allow_html=True)
-            c_mob_sec, c_mob_btn = st.columns([2, 1])
-            with c_mob_sec:
-                secilen_mob_ogr = st.selectbox("Mobil Kartı İndirilecek Öğretmen:", tum_ogretmenler, key="mob_ogr_sec")
+            st.markdown('<div class="panel-header">📱 WHATSAPP İÇİN MOBİL ÖĞRETMEN KARTLARI (PNG / RESİM)</div>', unsafe_allow_html=True)
+            st.caption("Telefon ekranlarına özel optimize edilmiş yüksek kaliteli PNG kartları. Zoom yapmadan tüm hafta net görünür.")
+            
+            c_mob_tek, c_mob_toplu = st.columns(2)
+            
+            with c_mob_tek:
+                st.markdown("**👤 Tek Öğretmen Kartı İndir:**")
+                secilen_mob_ogr = st.selectbox("Öğretmen Seçin:", tum_ogretmenler, key="mob_ogr_sec")
                 nob_bilgi_mob = ""
                 if st.session_state.nobet_listesi is not None:
                     nb_satir = st.session_state.nobet_listesi[st.session_state.nobet_listesi["Öğretmen"] == secilen_mob_ogr]
                     if not nb_satir.empty:
                         nob_bilgi_mob = nb_satir.iloc[0]["Nöbet Günü"]
-            with c_mob_btn:
-                st.write("")
+                
                 kart_bytes = whatsapp_program_karti_uret(
                     secilen_mob_ogr,
                     st.session_state.cozum_ogretmen[secilen_mob_ogr],
@@ -1548,14 +1563,42 @@ with tab_pdf:
                     nob_bilgi_mob
                 )
                 st.download_button(
-                    label=f"📲 {secilen_mob_ogr} Mobil Kartını İndir (.png)",
+                    label=f"📲 {secilen_mob_ogr} Kartını İndir (.png)",
                     data=kart_bytes,
                     file_name=f"{secilen_mob_ogr}_program_karti.png",
                     mime="image/png",
                     use_container_width=True
                 )
-            st.caption("Bu görsel telefon ekranlarına (1080x1920) özel boyutlandırılmıştır; WhatsApp veya Telegram üzerinden öğretmene doğrudan fotoğraf olarak atılabilir.")
 
+            with c_mob_toplu:
+                st.markdown("**📦 Tüm Kadroyu Toplu Paket Olarak İndir:**")
+                st.caption(f"Okuldaki tüm ({len(tum_ogretmenler)}) öğretmen için kartları tek seferde ZIP arşivi yapar.")
+                
+                # Tüm öğretmen kartlarını bellekte ZIP haline getirme
+                zip_buffer = io.BytesIO()
+                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                    zil_v = zil_saatlerini_uret(8)
+                    for o in tum_ogretmenler:
+                        nb_g = ""
+                        if st.session_state.nobet_listesi is not None:
+                            nb_sat = st.session_state.nobet_listesi[st.session_state.nobet_listesi["Öğretmen"] == o]
+                            if not nb_sat.empty:
+                                nb_g = nb_sat.iloc[0]["Nöbet Günü"]
+                        
+                        img_b = whatsapp_program_karti_uret(o, st.session_state.cozum_ogretmen[o], zil_v, nb_g)
+                        zip_file.writestr(f"{o}_program_karti.png", img_b)
+                
+                st.download_button(
+                    label="📦 TÜM ÖĞRETMENLERİN KARTLARINI İNDİR (.ZIP)",
+                    data=zip_buffer.getvalue(),
+                    file_name=f"{st.session_state.okul_adi}_tum_ogretmenler_whatsapp_kartlari.zip",
+                    mime="application/zip",
+                    use_container_width=True
+                )
+
+        # ==========================================
+        # 2. RESMÎ MEB PDF BASKI ALANI
+        # ==========================================
         with st.container(border=True):
             st.markdown('<div class="panel-header">📄 Resmî MEB Formatında PDF Çıktı Modları</div>', unsafe_allow_html=True)
             pdf_secenek = st.radio(
@@ -1719,4 +1762,4 @@ with tab_nobet:
             st.write("")
             st.dataframe(st.session_state.nobet_listesi, use_container_width=True, height=380)
         else:
-            st.info("Program henüz dağıtılmadı. 4. Sekmeden dağıtım yapıldığında nöbetler burada görünecektir.")
+            st.info("Dağıtım yapıldığında nöbet çizelgesi burada görünecektir.")

@@ -16,27 +16,29 @@ import zipfile
 
 st.set_page_config(page_title="Akıllı Okul Ders Dağıtım & Yönetim Sistemi", layout="wide")
 
-# ==========================================
-# 0. ULTRA-MODERN, KAVİSLİ & GÖLGELİ ARAYÜZ (CSS)
-# ==========================================
+# ========================================================
+# 0. FERAH, GENİŞ KADRAJLI, KAVİSLİ & ULTRA-MODERN CSS
+# ========================================================
 st.markdown("""
 <style>
+    /* Tam Genişlik & Rahat Okunur Kadraj */
     .block-container {
         padding-top: 0.8rem !important;
-        padding-bottom: 2rem !important;
+        padding-bottom: 2.5rem !important;
         padding-left: 2rem !important;
         padding-right: 2rem !important;
         max-width: 100% !important;
     }
     html, body, [class*="css"] {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        font-size: 14px !important;
+        font-size: 14.5px !important;
     }
     
+    /* Çerçeveli Bağımsız Panel Kutuları */
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        border: 1.5px solid rgba(128, 128, 128, 0.22) !important;
+        border: 1.5px solid rgba(128, 128, 128, 0.25) !important;
         border-radius: 14px !important;
-        background: rgba(255, 255, 255, 0.02) !important;
+        background: rgba(255, 255, 255, 0.025) !important;
         padding: 22px 26px !important;
         margin-bottom: 22px !important;
         box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04) !important;
@@ -55,12 +57,13 @@ st.markdown("""
         gap: 8px;
     }
     
+    /* Gölgeli ve Hareketli Butonlar */
     .stButton > button {
         width: 100% !important;
         border-radius: 9px !important;
         min-height: 44px !important;
         font-weight: 600 !important;
-        font-size: 13.8px !important;
+        font-size: 14px !important;
         box-shadow: 0 2px 6px rgba(0,0,0,0.06);
         transition: all 0.22s ease-in-out;
         border: 1px solid rgba(128, 128, 128, 0.25);
@@ -68,38 +71,40 @@ st.markdown("""
     .stButton > button:hover {
         transform: translateY(-2px);
         border-color: #0066cc !important;
-        box-shadow: 0 6px 18px rgba(0, 102, 204, 0.2);
+        box-shadow: 0 6px 18px rgba(0, 102, 204, 0.22);
     }
     
+    /* MODERN HAP (PILL) SEKME ÇUBUĞU TASARIMI */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 12px;
-        padding: 6px 8px 14px 8px;
-        border-bottom: 1px solid rgba(128, 128, 128, 0.18);
+        gap: 10px !important;
+        padding: 8px 6px 14px 6px !important;
+        border-bottom: 1.5px solid rgba(128, 128, 128, 0.18) !important;
     }
     .stTabs [data-baseweb="tab"] {
-        border-radius: 10px !important;
-        padding: 10px 20px !important;
+        border-radius: 12px !important;
+        padding: 10px 22px !important;
         font-weight: 600 !important;
-        font-size: 14px !important;
-        border: 1px solid rgba(128, 128, 128, 0.18) !important;
-        background: rgba(128, 128, 128, 0.05);
+        font-size: 14.5px !important;
+        border: 1px solid rgba(128, 128, 128, 0.22) !important;
+        background: rgba(128, 128, 128, 0.06) !important;
         color: #334155 !important;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
-        transition: all 0.2s ease-in-out;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04) !important;
+        transition: all 0.2s ease-in-out !important;
     }
     .stTabs [data-baseweb="tab"]:hover {
-        transform: translateY(-2px);
-        background: rgba(0, 102, 204, 0.08);
-        border-color: rgba(0, 102, 204, 0.3) !important;
+        transform: translateY(-2px) !important;
+        background: rgba(0, 102, 204, 0.1) !important;
+        border-color: rgba(0, 102, 204, 0.35) !important;
         color: #0066cc !important;
     }
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #0052cc 0%, #0066cc 100%) !important;
         color: white !important;
         border-color: #0052cc !important;
-        box-shadow: 0 4px 14px rgba(0, 102, 204, 0.35) !important;
-        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(0, 102, 204, 0.35) !important;
+        transform: translateY(-1px) !important;
     }
+    /* Kaba kırmızı/mavi alt çizgiyi tamamen kaldır */
     .stTabs [data-baseweb="tab-highlight"] {
         display: none !important;
     }
@@ -107,7 +112,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. VERİ YAPISI VE OTOMATİK HAFIZA
+# 1. VERİ YAPISI VE KALICI HAFIZA SİSTEMİ
 # ==========================================
 VERI_DOSYASI = "okul_kalici_veri.json"
 GUNLER = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"]
@@ -170,7 +175,7 @@ def varsayilan_iho_verisi():
     return pd.DataFrame(rows)
 
 # ========================================================
-# KESİN KEYERROR ÖNLEYİCİ: TÜM STATE'LERİ GARANTİYE AL
+# KESİN KEYERROR ÖNLEYİCİ: TÜM STATE'LERİ EN TEPEDE BAŞLAT
 # ========================================================
 if "okul_adi" not in st.session_state:
     st.session_state.okul_adi = "İMAM HATİP ORTAOKULU"
@@ -268,6 +273,13 @@ def verileri_yukle():
 if not st.session_state.get("dosyadan_okundu_mu", False):
     verileri_yukle()
     st.session_state.dosyadan_okundu_mu = True
+
+# ========================================================
+# KRİTİK: TUM_OGRETMENLER VE SINIFLARI SEKMEDEN ÖNCE TANIMLA!
+# ========================================================
+df_aktif = st.session_state.ders_listesi[st.session_state.ders_listesi["Saat"] > 0]
+tum_ogretmenler = sorted(list(df_aktif["Öğretmen"].unique())) if not df_aktif.empty else []
+siniflar = sorted(list(df_aktif["Sınıf"].unique())) if not df_aktif.empty else []
 
 DERS_KISALTMALARI = {
     "Türkçe": "TRK", "Matematik": "MAT", "Fen Bilimleri": "FEN",
@@ -730,28 +742,29 @@ def cakismalari_denetle(df_ders, gun_saatleri, kilitler, tum_ogretmenler, sinifl
     return teshisler
 
 # ========================================================
-# ULTRA-MODERN BAŞLIK: ÜSTÜ KESKİN, ALTI YUVARLAK & GÖLGELİ
+# ULTRA-MODERN BAŞLIK: ÜSTÜ DÜZ KESKİN, ALTI OVAL KAVİSLİ
 # ========================================================
 st.markdown(f"""
 <div style="
     background: linear-gradient(135deg, #004c99 0%, #0066cc 100%); 
-    padding: 22px 30px; 
-    border-radius: 0px 0px 24px 24px; 
+    padding: 24px 32px; 
+    border-radius: 0px 0px 26px 26px; 
     color: white; 
-    margin-bottom: 22px; 
+    margin-bottom: 24px; 
     display: flex; 
     justify-content: space-between; 
     align-items: center; 
-    box-shadow: 0 10px 25px -5px rgba(0, 102, 204, 0.35);
+    box-shadow: 0 12px 28px -5px rgba(0, 76, 153, 0.4);
 ">
     <div>
-        <h2 style="margin: 0; font-size: 23px; font-weight: 800; color: white; letter-spacing: -0.3px;">🏛️ {st.session_state.okul_adi}</h2>
-        <p style="margin: 4px 0 0 0; font-size: 14.5px; opacity: 0.92;">Akıllı Ders Dağıtım, Blok Motoru & Nöbet Yönetim Sistemi</p>
+        <h2 style="margin: 0; font-size: 24px; font-weight: 800; color: white; letter-spacing: -0.3px;">🏛️ {st.session_state.okul_adi}</h2>
+        <p style="margin: 5px 0 0 0; font-size: 15px; opacity: 0.95;">Akıllı Ders Dağıtım, Blok Motoru & Nöbet Yönetim Sistemi</p>
     </div>
-    <span style="background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4); padding: 7px 18px; border-radius: 8px; font-size: 13.5px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">{st.session_state.egitim_yili}</span>
+    <span style="background: rgba(255,255,255,0.2); border: 1.5px solid rgba(255,255,255,0.45); padding: 7px 20px; border-radius: 9px; font-size: 14px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">{st.session_state.egitim_yili}</span>
 </div>
 """, unsafe_allow_html=True)
 
+# SEKME BÖLÜMÜ
 tab_okul, tab_kisi_ders, tab_kilit, tab_motor, tab_pdf, tab_carsaf, tab_nobet = st.tabs([
     "🏛️ 1. Okul & Zil Saatleri",
     "👥 2. Kadro & Dersler",
@@ -1283,7 +1296,7 @@ with tab_motor:
                     st.rerun()
                 else:
                     st.session_state.teshis_hatalari = []
-                    with st.spinner("Öğretmenlerin gün içi boşlukları (pencereleri) sıkıştırılarak dağıtılıyor..."):
+                    with st.spinner("Öğretmenlerin gün içi boşlukları sıkıştırılarak program çözülüyor..."):
                         def model_olustur_ve_coz(bloklu_mu=True):
                             m = cp_model.CpModel()
                             g_saatleri = st.session_state.gun_saatleri
@@ -1340,6 +1353,7 @@ with tab_motor:
                                             sv = [v for b_idx, v in aktif_b(g, s) if b_list[b_idx]["Öğretmen"] == ogr and b_list[b_idx]["Sınıf"] == snf and b_list[b_idx]["Ders"] == drs]
                                             if sv: m.Add(sum(sv) >= 1)
 
+                                # GÜN İÇİ BOŞLUK (PENCERE) AZALTMA
                                 bosluk_penaltilari = []
                                 for ogr in tum_ogretmenler:
                                     for g in GUNLER:
@@ -1465,7 +1479,7 @@ with tab_motor:
         # ==========================================
         with st.container(border=True):
             st.markdown('<div class="panel-header">🖱️ CANLI İNTERAKTİF SÜRÜKLE-BIRAK (DRAG & DROP) MASASI</div>', unsafe_allow_html=True)
-            st.caption("Ders kartını farenin sol tuşuyla tutup istediğiniz güne ve saate sürükleyin. Yerinde ders varsa otomatik yer değiştirirler (Swap).")
+            st.caption("Ders kartını farenin sol tuşuyla tutup istediğiniz güne ve saate sürükleyin. Bıraktığınız yerde ders varsa otomatik yer değiştirirler (Swap).")
             
             c_mod, c_sec, c_dondur = st.columns([1, 1.5, 1.5])
             with c_mod:
@@ -1575,11 +1589,6 @@ with tab_motor:
 
                         dragSrcEl.innerHTML = destCard;
                         targetSlot.innerHTML = srcCard;
-                        
-                        // Tarayıcı sessionStorage'a son swap'ı geçici kaydet
-                        let swaps = JSON.parse(sessionStorage.getItem('last_swaps') || '[]');
-                        swaps.push({{src_g: srcGun, src_s: parseInt(srcSaat), dst_g: destGun, dst_s: parseInt(destSaat)}});
-                        sessionStorage.setItem('last_swaps', JSON.stringify(swaps));
                     }}
                 </script>
                 </head>
@@ -1605,9 +1614,7 @@ with tab_motor:
 
                 components.html(dnd_html, height=540, scrolling=True)
 
-                # ========================================================
                 # KALICI SÜRÜKLE-BIRAK KAYDET & KİLİTLEME BUTONU
-                # ========================================================
                 col_save_dnd, col_info_dnd = st.columns([1.5, 2.5])
                 with col_save_dnd:
                     if st.button(f"💾 {secilen_hoca} Sürükleme Değişikliklerini Kaydet & Sabitle", type="primary", use_container_width=True):

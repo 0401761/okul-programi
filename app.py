@@ -17,7 +17,7 @@ import zipfile
 st.set_page_config(page_title="Akıllı Okul Ders Dağıtım & Yönetim Sistemi", layout="wide")
 
 # ==========================================
-# 0. FERAH, OKUNAKLI & GENİŞ KADRAJLI ARAYÜZ (CSS)
+# 0. GENİŞ KADRAJ VE OKUNAKLI KURUMSAL CSS
 # ==========================================
 st.markdown("""
 <style>
@@ -30,7 +30,7 @@ st.markdown("""
     }
     html, body, [class*="css"] {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        font-size: 14.5px !important;
+        font-size: 14px !important;
     }
     div[data-testid="stVerticalBlockBorderWrapper"] {
         border: 1.5px solid rgba(128, 128, 128, 0.28) !important;
@@ -99,9 +99,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. OTOMATİK VERİ YÜKLEME & KALICI HAFIZA
+# 1. VERİ YAPISI VE OTOMATİK HAFIZA
 # ==========================================
 VERI_DOSYASI = "okul_kalici_veri.json"
+GUNLER = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"]
 
 def varsayilan_iho_verisi():
     curricula = {
@@ -160,25 +161,65 @@ def varsayilan_iho_verisi():
                 })
     return pd.DataFrame(rows)
 
+# ========================================================
+# KESİN KEYERROR ÖNLEYİCİ: TÜM STATE'LERİ GARANTİYE AL
+# ========================================================
+if "okul_adi" not in st.session_state:
+    st.session_state.okul_adi = "İMAM HATİP ORTAOKULU"
+if "egitim_yili" not in st.session_state:
+    st.session_state.egitim_yili = "2026-2027 Eğitim Öğretim Yılı"
+if "mudur_adi" not in st.session_state:
+    st.session_state.mudur_adi = "Okul Müdürü"
+if "ders_baslangic" not in st.session_state:
+    st.session_state.ders_baslangic = "08:30"
+if "ders_dk" not in st.session_state:
+    st.session_state.ders_dk = 40
+if "ogle_arasi_ders" not in st.session_state:
+    st.session_state.ogle_arasi_ders = 5
+if "ogle_arasi_dk" not in st.session_state:
+    st.session_state.ogle_arasi_dk = 45
+if "gunluk_maks_ders" not in st.session_state:
+    st.session_state.gunluk_maks_ders = 6
+if "teneffus_sureleri" not in st.session_state:
+    st.session_state.teneffus_sureleri = {1:20, 2:10, 3:10, 4:10, 5:10, 6:10, 7:10}
+if "gun_saatleri" not in st.session_state:
+    st.session_state.gun_saatleri = {"Pazartesi":7, "Salı":7, "Çarşamba":8, "Perşembe":7, "Cuma":7}
+if "kilitler" not in st.session_state:
+    st.session_state.kilitler = set()
+if "dondurulan_ogretmenler" not in st.session_state:
+    st.session_state.dondurulan_ogretmenler = set()
+if "dondurulan_atamalar" not in st.session_state:
+    st.session_state.dondurulan_atamalar = {}
+if "cozum_ogretmen" not in st.session_state:
+    st.session_state.cozum_ogretmen = None
+if "cozum_sinif" not in st.session_state:
+    st.session_state.cozum_sinif = None
+if "teshis_hatalari" not in st.session_state:
+    st.session_state.teshis_hatalari = []
+if "nobet_listesi" not in st.session_state:
+    st.session_state.nobet_listesi = None
+if "ders_listesi" not in st.session_state:
+    st.session_state.ders_listesi = varsayilan_iho_verisi()
+
 def verileri_kaydet():
     veri = {
-        "okul_adi": st.session_state.get("okul_adi", "İMAM HATİP ORTAOKULU"),
-        "egitim_yili": st.session_state.get("egitim_yili", "2026-2027 Eğitim Öğretim Yılı"),
-        "mudur_adi": st.session_state.get("mudur_adi", "Okul Müdürü"),
-        "ders_baslangic": st.session_state.get("ders_baslangic", "08:30"),
-        "ders_dk": st.session_state.get("ders_dk", 40),
-        "ogle_arasi_ders": st.session_state.get("ogle_arasi_ders", 5),
-        "ogle_arasi_dk": st.session_state.get("ogle_arasi_dk", 45),
-        "gunluk_maks_ders": st.session_state.get("gunluk_maks_ders", 6),
-        "teneffus_sureleri": {str(k): v for k, v in st.session_state.get("teneffus_sureleri", {1:20, 2:10, 3:10, 4:10, 5:10, 6:10, 7:10}).items()},
-        "gun_saatleri": st.session_state.get("gun_saatleri", {"Pazartesi":7, "Salı":7, "Çarşamba":8, "Perşembe":7, "Cuma":7}),
-        "kilitler": list(st.session_state.get("kilitler", set())),
-        "dondurulan_ogretmenler": list(st.session_state.get("dondurulan_ogretmenler", set())),
-        "dondurulan_atamalar": {k: [list(item) for item in v] for k, v in st.session_state.get("dondurulan_atamalar", {}).items()},
-        "ders_listesi": st.session_state.ders_listesi.to_dict(orient="records") if "ders_listesi" in st.session_state else varsayilan_iho_verisi().to_dict(orient="records"),
-        "cozum_ogretmen": st.session_state.get("cozum_ogretmen", None),
-        "cozum_sinif": st.session_state.get("cozum_sinif", None),
-        "nobet_listesi": st.session_state.nobet_listesi.to_dict(orient="records") if st.session_state.get("nobet_listesi") is not None else None
+        "okul_adi": st.session_state.okul_adi,
+        "egitim_yili": st.session_state.egitim_yili,
+        "mudur_adi": st.session_state.mudur_adi,
+        "ders_baslangic": st.session_state.ders_baslangic,
+        "ders_dk": st.session_state.ders_dk,
+        "ogle_arasi_ders": st.session_state.ogle_arasi_ders,
+        "ogle_arasi_dk": st.session_state.ogle_arasi_dk,
+        "gunluk_maks_ders": st.session_state.gunluk_maks_ders,
+        "teneffus_sureleri": {str(k): v for k, v in st.session_state.teneffus_sureleri.items()},
+        "gun_saatleri": st.session_state.gun_saatleri,
+        "kilitler": list(st.session_state.kilitler),
+        "dondurulan_ogretmenler": list(st.session_state.dondurulan_ogretmenler),
+        "dondurulan_atamalar": {k: [list(item) for item in v] for k, v in st.session_state.dondurulan_atamalar.items()},
+        "ders_listesi": st.session_state.ders_listesi.to_dict(orient="records"),
+        "cozum_ogretmen": st.session_state.cozum_ogretmen,
+        "cozum_sinif": st.session_state.cozum_sinif,
+        "nobet_listesi": st.session_state.nobet_listesi.to_dict(orient="records") if st.session_state.nobet_listesi is not None else None
     }
     try:
         with open(VERI_DOSYASI, "w", encoding="utf-8") as f:
@@ -216,30 +257,9 @@ def verileri_yukle():
             pass
     return False
 
-# Güvenli Session State Başlatma
-if not st.session_state.get("veri_yuklendi_mi", False):
-    if not verileri_yukle():
-        st.session_state.okul_adi = "İMAM HATİP ORTAOKULU"
-        st.session_state.egitim_yili = "2026-2027 Eğitim Öğretim Yılı"
-        st.session_state.mudur_adi = "Okul Müdürü"
-        st.session_state.ders_baslangic = "08:30"
-        st.session_state.ders_dk = 40
-        st.session_state.ogle_arasi_ders = 5
-        st.session_state.ogle_arasi_dk = 45
-        st.session_state.gunluk_maks_ders = 6
-        st.session_state.teneffus_sureleri = {1:20, 2:10, 3:10, 4:10, 5:10, 6:10, 7:10}
-        st.session_state.gun_saatleri = {"Pazartesi":7, "Salı":7, "Çarşamba":8, "Perşembe":7, "Cuma":7}
-        st.session_state.kilitler = set()
-        st.session_state.dondurulan_ogretmenler = set()
-        st.session_state.dondurulan_atamalar = {}
-        st.session_state.cozum_ogretmen = None
-        st.session_state.cozum_sinif = None
-        st.session_state.nobet_listesi = None
-        st.session_state.ders_listesi = varsayilan_iho_verisi()
-        verileri_kaydet()
-    st.session_state.veri_yuklendi_mi = True
-
-GUNLER = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"]
+if not st.session_state.get("dosyadan_okundu_mu", False):
+    verileri_yukle()
+    st.session_state.dosyadan_okundu_mu = True
 
 DERS_KISALTMALARI = {
     "Türkçe": "TRK", "Matematik": "MAT", "Fen Bilimleri": "FEN",
@@ -334,7 +354,7 @@ def whatsapp_program_karti_uret(ogretmen_adi, program_sozlugu, zil_saatleri, nob
     d.rectangle([(0, 0), (w, 140)], fill=(0, 76, 153))
     d.rectangle([(0, 140), (w, 144)], fill=(0, 102, 204))
     
-    d.text((35, 20), st.session_state.okul_adi.upper(), fill=(255, 255, 255))
+    d.text((35, 20), str(st.session_state.okul_adi).upper(), fill=(255, 255, 255))
     d.text((35, 48), "HAFTALIK DERS PROGRAMI", fill=(190, 220, 255))
     d.text((35, 82), f"Öğretmen: {ogretmen_adi}", fill=(255, 255, 255))
     
@@ -343,12 +363,11 @@ def whatsapp_program_karti_uret(ogretmen_adi, program_sozlugu, zil_saatleri, nob
         d.rectangle([(w - 240, 42), (w - 35, 98)], fill=(255, 193, 7), outline=(217, 119, 6), width=2)
         d.text((w - 220, 60), nobet_text, fill=(30, 41, 59))
 
-    gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"]
     x_offset = 120
     col_w = (w - x_offset - 25) // 5
     y_start = 165
     
-    for i, g in enumerate(gunler):
+    for i, g in enumerate(GUNLER):
         gx = x_offset + i * col_w
         d.rectangle([(gx + 3, y_start), (gx + col_w - 3, y_start + 36)], fill=(224, 231, 255), outline=(199, 210, 254), width=1)
         d.text((gx + 18, y_start + 10), g[:3].upper(), fill=(30, 58, 138))
@@ -362,7 +381,7 @@ def whatsapp_program_karti_uret(ogretmen_adi, program_sozlugu, zil_saatleri, nob
         d.text((36, y_cur + 22), f"{s+1}. Ders", fill=(30, 41, 59))
         d.text((30, y_cur + 55), saat_aralik, fill=(100, 116, 139))
         
-        for g_idx, g in enumerate(gunler):
+        for g_idx, g in enumerate(GUNLER):
             cell_x = x_offset + g_idx * col_w
             val = program_sozlugu.get(g, ["-"] * 8)[s]
             box_coords = [(cell_x + 3, y_cur), (cell_x + col_w - 3, y_cur + row_h - 6)]
@@ -394,7 +413,7 @@ def whatsapp_program_karti_uret(ogretmen_adi, program_sozlugu, zil_saatleri, nob
 def zil_saatlerini_uret(toplam_saat=8):
     saatler = []
     try:
-        baslangic_str = st.session_state.get("ders_baslangic", "08:30")
+        baslangic_str = str(st.session_state.get("ders_baslangic", "08:30"))
         ders_dakika = int(st.session_state.get("ders_dk", 40))
         ogle_ders_idx = int(st.session_state.get("ogle_arasi_ders", 5))
         ogle_dakika = int(st.session_state.get("ogle_arasi_dk", 45))
@@ -407,7 +426,7 @@ def zil_saatlerini_uret(toplam_saat=8):
             if s == ogle_ders_idx:
                 cur_t = bitis_t + timedelta(minutes=ogle_dakika)
             else:
-                t_sure = int(teneffus_sureleri.get(s, 10))
+                t_sure = int(teneffusler.get(s, 10))
                 cur_t = bitis_t + timedelta(minutes=t_sure)
     except Exception:
         cur_t = datetime.strptime("08:30", "%H:%M")
@@ -419,7 +438,7 @@ def zil_saatlerini_uret(toplam_saat=8):
 
 def ogle_arasi_saat_araligi():
     try:
-        baslangic_str = st.session_state.get("ders_baslangic", "08:30")
+        baslangic_str = str(st.session_state.get("ders_baslangic", "08:30"))
         ders_dakika = int(st.session_state.get("ders_dk", 40))
         ogle_ders_idx = int(st.session_state.get("ogle_arasi_ders", 5))
         ogle_dakika = int(st.session_state.get("ogle_arasi_dk", 45))
@@ -430,7 +449,7 @@ def ogle_arasi_saat_araligi():
             bitis_t = cur_t + timedelta(minutes=ders_dakika)
             if s == ogle_ders_idx:
                 return f"{bitis_t.strftime('%H:%M')} - {(bitis_t + timedelta(minutes=ogle_dakika)).strftime('%H:%M')}"
-            cur_t = bitis_t + timedelta(minutes=int(teneffus_sureleri.get(s, 10)))
+            cur_t = bitis_t + timedelta(minutes=int(teneffusler.get(s, 10)))
     except Exception:
         pass
     return "12:30 - 13:15"
@@ -724,6 +743,10 @@ tab_okul, tab_kisi_ders, tab_kilit, tab_motor, tab_pdf, tab_carsaf, tab_nobet = 
     "📋 6. İdareci Çarşafı",
     "🛡️ 7. Akıllı Nöbet"
 ])
+
+df_aktif = st.session_state.ders_listesi[st.session_state.ders_listesi["Saat"] > 0]
+tum_ogretmenler = sorted(list(df_aktif["Öğretmen"].unique())) if not df_aktif.empty else []
+siniflar = sorted(list(df_aktif["Sınıf"].unique())) if not df_aktif.empty else []
 
 # ----------------------------------------------------
 # TAB 1: OKUL KÜNYESİ VE ZİL SAATLERİ
@@ -1065,10 +1088,6 @@ with tab_kisi_ders:
                             st.success("🎉 Görsel başarıyla okundu! 24 Şube, 40 Öğretmen aktarıldı.")
                             st.rerun()
 
-df_aktif = st.session_state.ders_listesi[st.session_state.ders_listesi["Saat"] > 0]
-tum_ogretmenler = sorted(list(df_aktif["Öğretmen"].unique())) if not df_aktif.empty else []
-siniflar = sorted(list(df_aktif["Sınıf"].unique())) if not df_aktif.empty else []
-
 # ----------------------------------------------------
 # TAB 3: GÜNE ÖZEL KİLİT MATRİSİ
 # ----------------------------------------------------
@@ -1164,7 +1183,7 @@ with tab_motor:
             if st.session_state.dondurulan_ogretmenler:
                 st.info(f"📌 **Sabitlenmiş (Dondurulmuş) Öğretmenler:** {', '.join(st.session_state.dondurulan_ogretmenler)}")
 
-            if st.session_state.teshis_hatalari:
+            if st.session_state.get("teshis_hatalari"):
                 st.error("⛔ **DERS PROGRAMI DAĞITILAMADI (Matematiksel Engel Tespit Edildi!)**")
                 for idx, th in enumerate(st.session_state.teshis_hatalari):
                     c_bilgi, c_soft, c_sifirla = st.columns([2.5, 1.2, 1.3])
@@ -1307,7 +1326,6 @@ with tab_motor:
                                             sv = [v for b_idx, v in aktif_b(g, s) if b_list[b_idx]["Öğretmen"] == ogr and b_list[b_idx]["Sınıf"] == snf and b_list[b_idx]["Ders"] == drs]
                                             if sv: m.Add(sum(sv) >= 1)
 
-                                # MAKSIMUM BOŞLUK CEZASI
                                 bosluk_penaltilari = []
                                 for ogr in tum_ogretmenler:
                                     for g in GUNLER:
